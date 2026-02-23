@@ -26,11 +26,11 @@ input{padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:8px;widt
 
 <div id="root"></div>
 
-<script type="module">
+<script type="text/babel" data-type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
 
 const firebaseConfig = {
@@ -63,19 +63,25 @@ function App() {
     localStorage.setItem("cart",JSON.stringify(cart));
   },[cart]);
 
+  useEffect(()=>{
+    onAuthStateChanged(auth,u=>{
+      setUser(u);
+      if(u){
+        const q=query(collection(db,"orders"),where("userId","==",u.uid));
+        onSnapshot(q,snap=>{
+          setOrders(snap.docs.map(d=>d.data()));
+        });
+      }
+    });
+  },[]);
+
   const addToCart=f=>setCart([...cart,f]);
   const removeFromCart=i=>setCart(cart.filter((_,idx)=>idx!==i));
 
   const login=async()=>{
     const email=prompt("Email");
     const pass=prompt("Password");
-    const res=await signInWithEmailAndPassword(auth,email,pass);
-    setUser(res.user);
-
-    const q=query(collection(db,"orders"),where("userId","==",res.user.uid));
-    onSnapshot(q,snap=>{
-      setOrders(snap.docs.map(d=>d.data()));
-    });
+    await signInWithEmailAndPassword(auth,email,pass);
   };
 
   const checkout=async()=>{
@@ -114,7 +120,7 @@ function App() {
       <header>
         <h2>🌸 Flower ULTRA</h2>
         <div>
-          <button onClick={login}>Войти</button>
+          {!user && <button onClick={login}>Войти</button>}
           {user && <button className="primary" onClick={uploadFlower}>Добавить</button>}
         </div>
       </header>
@@ -163,19 +169,14 @@ function App() {
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js").catch(()=>{});
+  const swBlob = new Blob([`
+    self.addEventListener('install', e=>self.skipWaiting());
+    self.addEventListener('fetch', e=>{});
+  `], { type: 'text/javascript' });
+
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob));
 }
 
-</script>
-
-<script>
-const swCode = `
-self.addEventListener('install', e=>self.skipWaiting());
-self.addEventListener('fetch', e=>{});
-`;
-const blob = new Blob([swCode], { type: 'text/javascript' });
-const swUrl = URL.createObjectURL(blob);
-navigator.serviceWorker.register(swUrl);
 </script>
 
 </body>
