@@ -12,81 +12,24 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #ffffff;
-  color: #111;
+  background: #fff;
+}
+
+#app {
+  padding-bottom: 90px;
 }
 
 .topbar {
-  padding: 16px;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.filters {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding: 0 16px 10px;
-}
-
-.chip {
-  padding: 8px 14px;
-  background: #f2f2f2;
-  border-radius: 20px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  padding: 16px;
-  padding-bottom: 100px;
-}
-
-.card {
-  background: white;
-}
-
-.card img {
-  width: 100%;
-  height: 210px;
-  object-fit: cover;
-  border-radius: 18px;
-}
-
-.card-info {
-  padding: 8px 4px 0;
-}
-
-.price {
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.title {
-  font-size: 14px;
-  color: #555;
-  margin-top: 4px;
-}
-
-.favorite {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(255,255,255,0.9);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
 }
 
-.card-wrapper {
-  position: relative;
+.content {
+  padding: 16px;
 }
 
 .bottom-nav {
@@ -103,38 +46,37 @@ body {
 }
 
 .nav-item {
-  text-align: center;
   font-size: 12px;
+  text-align: center;
   color: #888;
 }
 
 .nav-item.active {
   color: #2AABEE;
+  font-weight: 600;
+}
+
+.card {
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
 }
 </style>
 </head>
 
 <body>
 
-<div class="topbar">Flower Shop</div>
-
-<div class="filters">
-  <div class="chip">Категории</div>
-  <div class="chip">Розы</div>
-  <div class="chip">Тюльпаны</div>
-  <div class="chip">Букеты</div>
-</div>
-
-<div id="catalog" class="grid"></div>
-
-<div class="bottom-nav">
-  <div class="nav-item active">🏠<br>Главная</div>
-  <div class="nav-item">❤️<br>Избранное</div>
-  <div class="nav-item">🛒<br>Корзина</div>
-  <div class="nav-item">👤<br>Профиль</div>
-</div>
+<div id="app"></div>
 
 <script>
+/* ---------------- CONFIG ---------------- */
+
 const firebaseConfig = {
   apiKey: "ТВОЙ_API_KEY",
   authDomain: "flower-app-5a32c.firebaseapp.com",
@@ -144,32 +86,154 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-const catalogDiv = document.getElementById("catalog");
+/* ---------------- STATE ---------------- */
 
-function loadFlowers() {
-  catalogDiv.innerHTML = "";
+let state = {
+  screen: "home",
+  products: [],
+  selectedProduct: null,
+  cart: [],
+  favorites: []
+};
 
+/* ---------------- INIT ---------------- */
+
+function init() {
+  loadProducts();
+  render();
+}
+
+function loadProducts() {
   db.collection("flowers").get().then(snapshot => {
-    snapshot.forEach(doc => {
-      const flower = doc.data();
-
-      catalogDiv.innerHTML += `
-        <div class="card">
-          <div class="card-wrapper">
-            <img src="${flower.image}" onerror="this.src='https://via.placeholder.com/400x300?text=Flower'">
-            <div class="favorite">♡</div>
-          </div>
-          <div class="card-info">
-            <div class="price">${flower.price} ₽</div>
-            <div class="title">${flower.name}</div>
-          </div>
-        </div>
-      `;
-    });
+    state.products = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    render();
   });
 }
 
-loadFlowers();
+/* ---------------- NAVIGATION ---------------- */
+
+function navigate(screen, product = null) {
+  state.screen = screen;
+  state.selectedProduct = product;
+  render();
+}
+
+/* ---------------- RENDER ---------------- */
+
+function render() {
+  const app = document.getElementById("app");
+
+  if (state.screen === "home") renderHome(app);
+  if (state.screen === "product") renderProduct(app);
+  if (state.screen === "cart") renderCart(app);
+  if (state.screen === "favorites") renderFavorites(app);
+  if (state.screen === "profile") renderProfile(app);
+}
+
+/* ---------------- SCREENS ---------------- */
+
+function renderHome(app) {
+  app.innerHTML = `
+    <div class="topbar">Flower Shop</div>
+    <div class="content">
+      ${state.products.map(p => `
+        <div class="card" onclick="navigate('product', '${p.id}')">
+          <img src="${p.image}">
+          <div style="padding:10px;">
+            <div style="font-weight:600;">${p.name}</div>
+            <div>${p.price} ₽</div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+    ${renderNav("home")}
+  `;
+}
+
+function renderProduct(app) {
+  const product = state.products.find(p => p.id === state.selectedProduct);
+
+  app.innerHTML = `
+    <div class="topbar">
+      <span onclick="navigate('home')" style="position:absolute;left:16px;">←</span>
+      ${product.name}
+    </div>
+    <div class="content">
+      <img src="${product.image}" style="width:100%;border-radius:20px;">
+      <h2>${product.price} ₽</h2>
+      <button onclick="addToCart('${product.id}')"
+        style="width:100%;padding:14px;background:#2AABEE;color:#fff;border:none;border-radius:12px;">
+        Добавить в корзину
+      </button>
+    </div>
+  `;
+}
+
+function renderCart(app) {
+  app.innerHTML = `
+    <div class="topbar">Корзина</div>
+    <div class="content">
+      ${state.cart.map(id => {
+        const p = state.products.find(x => x.id === id);
+        return `<div>${p.name} — ${p.price} ₽</div>`;
+      }).join("")}
+    </div>
+    ${renderNav("cart")}
+  `;
+}
+
+function renderFavorites(app) {
+  app.innerHTML = `
+    <div class="topbar">Избранное</div>
+    <div class="content">
+      ${state.favorites.map(id => {
+        const p = state.products.find(x => x.id === id);
+        return `<div>${p.name}</div>`;
+      }).join("")}
+    </div>
+    ${renderNav("favorites")}
+  `;
+}
+
+function renderProfile(app) {
+  const user = Telegram.WebApp?.initDataUnsafe?.user;
+
+  app.innerHTML = `
+    <div class="topbar">Профиль</div>
+    <div class="content">
+      ${user ? `
+        <div>${user.first_name}</div>
+        <div>@${user.username || ""}</div>
+      ` : "Открой в Telegram"}
+    </div>
+    ${renderNav("profile")}
+  `;
+}
+
+/* ---------------- ACTIONS ---------------- */
+
+function addToCart(id) {
+  state.cart.push(id);
+  alert("Добавлено");
+}
+
+/* ---------------- NAV BAR ---------------- */
+
+function renderNav(active) {
+  return `
+    <div class="bottom-nav">
+      <div class="nav-item ${active==='home'?'active':''}" onclick="navigate('home')">🏠<br>Главная</div>
+      <div class="nav-item ${active==='favorites'?'active':''}" onclick="navigate('favorites')">❤️<br>Избранное</div>
+      <div class="nav-item ${active==='cart'?'active':''}" onclick="navigate('cart')">🛒<br>Корзина</div>
+      <div class="nav-item ${active==='profile'?'active':''}" onclick="navigate('profile')">👤<br>Профиль</div>
+    </div>
+  `;
+}
+
+init();
 
 if (window.Telegram && Telegram.WebApp) {
   Telegram.WebApp.expand();
