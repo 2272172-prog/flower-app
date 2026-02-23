@@ -18,6 +18,31 @@
     <button onclick="adminLogin()" style="position:absolute; top:20px; right:20px;">
   🔐
 </button>
+    function adminLogin() {
+  const pass = prompt("Введите пароль администратора");
+  if (pass === "1234") {
+    showAdminPanel();
+  } else {
+    alert("Неверный пароль");
+  }
+}
+
+function showAdminPanel() {
+  const name = prompt("Название цветка:");
+  const description = prompt("Описание:");
+  const price = prompt("Цена:");
+  const image = prompt("Ссылка на изображение:");
+
+  db.collection("flowers").add({
+    name: name,
+    description: description,
+    price: Number(price),
+    image: image
+  }).then(() => {
+    alert("Товар добавлен!");
+    location.reload();
+  });
+}
   }
 
   #catalog {
