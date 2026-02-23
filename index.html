@@ -7,12 +7,67 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-  <style>
-    body { font-family: Arial; padding: 20px; background: #fafafa; }
-    .card { border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 10px; background: white; }
-    img { width: 100%; border-radius: 10px; }
-    .price { color: green; font-weight: bold; }
-  </style>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    background: #f5f5f5;
+  }
+
+  h1 {
+    text-align: center;
+  }
+
+  #catalog {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    transition: 0.2s;
+  }
+
+  .card:hover {
+    transform: translateY(-4px);
+  }
+
+  .card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+  }
+
+  .card-content {
+    padding: 15px;
+  }
+
+  .price {
+    color: #e91e63;
+    font-weight: bold;
+    margin-top: 8px;
+  }
+
+  .btn {
+    display: block;
+    margin-top: 12px;
+    padding: 10px;
+    text-align: center;
+    background: #e91e63;
+    color: white;
+    border-radius: 8px;
+    text-decoration: none;
+  }
+
+  .btn:hover {
+    background: #c2185b;
+  }
+</style>
 </head>
 
 <body>
