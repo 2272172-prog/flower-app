@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flower Shop</title>
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -9,13 +10,15 @@
 
   <style>
     body {
+      margin: 0;
       font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #fff0f5, #ffe4ec);
       padding: 20px;
-      background: #f5f5f5;
     }
 
     h1 {
       text-align: center;
+      margin-bottom: 10px;
     }
 
     #catalog {
@@ -27,14 +30,14 @@
 
     .card {
       background: white;
-      border-radius: 12px;
+      border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-      transition: 0.2s;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      transition: 0.3s;
     }
 
     .card:hover {
-      transform: translateY(-4px);
+      transform: translateY(-6px);
     }
 
     .card img {
@@ -60,8 +63,10 @@
       text-align: center;
       background: #e91e63;
       color: white;
-      border-radius: 8px;
+      border-radius: 10px;
       text-decoration: none;
+      border: none;
+      cursor: pointer;
     }
 
     .btn:hover {
@@ -80,6 +85,49 @@
       cursor: pointer;
     }
 
+    .cart-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: white;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 50px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .cart-modal {
+      display: none;
+      position: fixed;
+      right: 20px;
+      top: 80px;
+      width: 320px;
+      background: white;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      max-height: 400px;
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .cart-total {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .delete-btn {
+      margin-top: 8px;
+      background: red;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
     .add-btn {
       display: none;
       position: fixed;
@@ -90,16 +138,6 @@
       border: none;
       padding: 8px 12px;
       border-radius: 8px;
-      cursor: pointer;
-    }
-
-    .delete-btn {
-      margin-top: 10px;
-      background: red;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 6px;
       cursor: pointer;
     }
 
@@ -130,6 +168,17 @@
       border-radius: 6px;
       cursor: pointer;
     }
+
+    @media (max-width: 600px) {
+      .cart-modal {
+        width: 90%;
+        right: 5%;
+      }
+
+      .card img {
+        height: 160px;
+      }
+    }
   </style>
 </head>
 
@@ -137,10 +186,18 @@
 
 <h1>🌸 Flower Shop</h1>
 
+<button class="cart-btn" onclick="toggleCart()">🛒 <span id="cartCount">0</span></button>
 <button class="admin-btn" onclick="adminLogin()">🔐</button>
 <button class="add-btn" id="addBtn">➕</button>
 
 <div id="catalog"></div>
+
+<div class="cart-modal" id="cartModal">
+  <h2>Корзина</h2>
+  <div id="cartItems"></div>
+  <div class="cart-total" id="cartTotal"></div>
+  <a id="checkoutBtn" target="_blank" class="btn">Оформить заказ</a>
+</div>
 
 <div class="admin-form" id="adminForm">
   <input id="name" placeholder="Название">
@@ -152,14 +209,12 @@
 
 <script>
   let isAdmin = false;
+  let cart = [];
 
   const firebaseConfig = {
     apiKey: "ТВОЙ_API_KEY",
     authDomain: "flower-app-5a32c.firebaseapp.com",
-    projectId: "flower-app-5a32c",
-    storageBucket: "flower-app-5a32c.appspot.com",
-    messagingSenderId: "540208840853",
-    appId: "1:540208840853:web:..."
+    projectId: "flower-app-5a32c"
   };
 
   firebase.initializeApp(firebaseConfig);
@@ -183,10 +238,9 @@
               <h3>${flower.name}</h3>
               <p>${flower.description}</p>
               <div class="price">${flower.price} ₽</div>
-              <a class="btn" target="_blank"
-                 href="https://t.me/vtaliy_gd?text=${encodeURIComponent('Хочу заказать ' + flower.name + ' за ' + flower.price + '₽')}">
-                 Заказать
-              </a>
+              <button class="btn" onclick='addToCart(${JSON.stringify(flower)})'>
+                В корзину
+              </button>
               ${isAdmin ? `<button class="delete-btn" onclick="deleteFlower('${doc.id}')">Удалить</button>` : ''}
             </div>
           </div>
@@ -196,6 +250,49 @@
   }
 
   loadFlowers();
+
+  function addToCart(flower) {
+    cart.push(flower);
+    updateCart();
+  }
+
+  function updateCart() {
+    document.getElementById("cartCount").innerText = cart.length;
+    const cartItemsDiv = document.getElementById("cartItems");
+    cartItemsDiv.innerHTML = "";
+    let total = 0;
+
+    cart.forEach((item, index) => {
+      total += item.price;
+      cartItemsDiv.innerHTML += `
+        <div>
+          ${item.name} — ${item.price} ₽
+          <button onclick="removeFromCart(${index})">❌</button>
+        </div>
+      `;
+    });
+
+    document.getElementById("cartTotal").innerText = "Итого: " + total + " ₽";
+
+    const message = cart.map(item =>
+      item.name + " — " + item.price + "₽"
+    ).join("\n");
+
+    document.getElementById("checkoutBtn").href =
+      "https://t.me/vtaliy_gd?text=" +
+      encodeURIComponent("Хочу заказать:\n" + message + "\n\nИтого: " + total + "₽");
+  }
+
+  function removeFromCart(index) {
+    cart.splice(index, 1);
+    updateCart();
+  }
+
+  function toggleCart() {
+    const modal = document.getElementById("cartModal");
+    modal.style.display =
+      modal.style.display === "block" ? "none" : "block";
+  }
 
   function adminLogin() {
     const pass = prompt("Введите пароль администратора");
@@ -210,7 +307,8 @@
   }
 
   addBtn.onclick = () => {
-    adminForm.style.display = adminForm.style.display === "none" ? "block" : "none";
+    adminForm.style.display =
+      adminForm.style.display === "none" ? "block" : "none";
   };
 
   function saveFlower() {
