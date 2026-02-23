@@ -1,10 +1,54 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Flower Shop</title>
+
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+
   <style>
-    body { font-family: Arial; padding: 20px; }
-    .card { border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 10px; }
+    body { font-family: Arial; padding: 20px; background: #fafafa; }
+    .card { border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 10px; background: white; }
     img { width: 100%; border-radius: 10px; }
+    h2 { margin: 5px 0; }
+    .price { color: green; font-weight: bold; }
+  </style>
+</head>
+
+<body>
+
+<h1>🌸 Flower Shop</h1>
+<div id="catalog"></div>
+
+<script>
+  // 🔹 ВСТАВЬ СВОЮ КОНФИГУРАЦИЮ FIREBASE СЮДА
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const catalogDiv = document.getElementById("catalog");
+
+  db.collection("flowers").get().then((querySnapshot) => {
+    querySnapshot.forEach((doc) => {
+      const flower = doc.data();
+
+      catalogDiv.innerHTML += `
+        <div class="card">
+          <img src="${flower.image}" />
+          <h2>${flower.name}</h2>
+          <p>${flower.description}</p>
+          <div class="price">${flower.price} ₽</div>
+        </div>
+      `;
+    });
+  });
+</script>
+
+</body>
+</html>
