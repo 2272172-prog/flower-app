@@ -1,279 +1,181 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flower Shop PRO</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Flower Shop ULTRA</title>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <style>
-body{
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:linear-gradient(135deg,#fff0f5,#ffe4ec);
-  padding:20px;
-}
-
-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  flex-wrap:wrap;
-}
-
-h1{margin:0;}
-
-.controls{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-input, select{
-  padding:8px;
-  border-radius:8px;
-  border:1px solid #ddd;
-}
-
-button{
-  cursor:pointer;
-  border:none;
-  border-radius:8px;
-}
-
-.primary{
-  background:#e91e63;
-  color:white;
-  padding:8px 12px;
-}
-
-#catalog{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
-  gap:20px;
-  margin-top:20px;
-}
-
-.card{
-  background:white;
-  border-radius:16px;
-  overflow:hidden;
-  box-shadow:0 6px 20px rgba(0,0,0,.08);
-  transition:.3s;
-}
-
-.card:hover{transform:translateY(-6px);}
-
-.card img{
-  width:100%;
-  height:200px;
-  object-fit:cover;
-}
-
-.card-content{padding:15px;}
-
-.price{
-  color:#e91e63;
-  font-weight:bold;
-}
-
-.cart-btn{
-  position:fixed;
-  top:20px;
-  right:20px;
-  background:white;
-  padding:10px 14px;
-  border-radius:50px;
-  box-shadow:0 4px 10px rgba(0,0,0,.1);
-}
-
-.cart-modal{
-  display:none;
-  position:fixed;
-  right:20px;
-  top:70px;
-  width:340px;
-  background:white;
-  padding:20px;
-  border-radius:16px;
-  box-shadow:0 10px 25px rgba(0,0,0,.2);
-  max-height:500px;
-  overflow:auto;
-}
-
-.admin-panel{
-  margin-top:20px;
-  background:white;
-  padding:15px;
-  border-radius:12px;
-  display:none;
-}
-
-@media(max-width:600px){
-  .cart-modal{
-    width:90%;
-    right:5%;
-  }
-}
+body{margin:0;font-family:Arial;background:#fff0f5}
+header{display:flex;justify-content:space-between;padding:15px;background:white;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px;padding:20px}
+.card{background:white;border-radius:16px;box-shadow:0 4px 15px rgba(0,0,0,.08);overflow:hidden}
+.card img{width:100%;height:200px;object-fit:cover}
+.card div{padding:15px}
+button{border:none;border-radius:8px;padding:8px 12px;cursor:pointer}
+.primary{background:#e91e63;color:white}
+.cart{position:fixed;right:20px;bottom:20px;background:white;padding:15px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,.2);width:300px;max-height:400px;overflow:auto}
+input{padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:8px;width:100%}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>🌸 Flower Shop PRO</h1>
+<div id="root"></div>
 
-  <div class="controls">
-    <input id="search" placeholder="Поиск...">
-    <select id="categoryFilter">
-      <option value="">Все категории</option>
-      <option value="bouquet">Букеты</option>
-      <option value="box">Коробки</option>
-      <option value="wedding">Свадебные</option>
-    </select>
-    <button id="loginBtn" class="primary">Войти</button>
-  </div>
-</header>
+<script type="module">
 
-<button class="cart-btn" onclick="toggleCart()">🛒 <span id="cartCount">0</span></button>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
 
-<div id="catalog"></div>
+const firebaseConfig = {
+  apiKey: "ТВОЙ_API_KEY",
+  authDomain: "flower-app-5a32c.firebaseapp.com",
+  projectId: "flower-app-5a32c",
+  storageBucket: "flower-app-5a32c.appspot.com"
+};
 
-<div class="cart-modal" id="cartModal">
-  <h3>Корзина</h3>
-  <div id="cartItems"></div>
-  <h4 id="cartTotal"></h4>
-  <button class="primary" onclick="checkout()">Оформить заказ</button>
-</div>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
 
-<div class="admin-panel" id="adminPanel">
-  <h3>Добавить товар</h3>
-  <input id="name" placeholder="Название"><br><br>
-  <input id="description" placeholder="Описание"><br><br>
-  <input id="price" type="number" placeholder="Цена"><br><br>
-  <input id="image" placeholder="URL картинки"><br><br>
-  <select id="category">
-    <option value="bouquet">Букет</option>
-    <option value="box">Коробка</option>
-    <option value="wedding">Свадебный</option>
-  </select><br><br>
-  <button class="primary" onclick="addFlower()">Добавить</button>
-</div>
+const { useState, useEffect } = React;
+
+function App() {
+  const [flowers,setFlowers]=useState([]);
+  const [cart,setCart]=useState(JSON.parse(localStorage.getItem("cart"))||[]);
+  const [user,setUser]=useState(null);
+  const [orders,setOrders]=useState([]);
+
+  useEffect(()=>{
+    onSnapshot(collection(db,"flowers"),snap=>{
+      setFlowers(snap.docs.map(d=>({...d.data(),id:d.id})));
+    });
+  },[]);
+
+  useEffect(()=>{
+    localStorage.setItem("cart",JSON.stringify(cart));
+  },[cart]);
+
+  const addToCart=f=>setCart([...cart,f]);
+  const removeFromCart=i=>setCart(cart.filter((_,idx)=>idx!==i));
+
+  const login=async()=>{
+    const email=prompt("Email");
+    const pass=prompt("Password");
+    const res=await signInWithEmailAndPassword(auth,email,pass);
+    setUser(res.user);
+
+    const q=query(collection(db,"orders"),where("userId","==",res.user.uid));
+    onSnapshot(q,snap=>{
+      setOrders(snap.docs.map(d=>d.data()));
+    });
+  };
+
+  const checkout=async()=>{
+    if(!user) return alert("Войди");
+    const total=cart.reduce((s,i)=>s+i.price,0);
+    await addDoc(collection(db,"orders"),{
+      userId:user.uid,
+      items:cart,
+      total,
+      createdAt:new Date()
+    });
+    setCart([]);
+  };
+
+  const uploadFlower=async()=>{
+    if(!user) return;
+    const name=prompt("Название");
+    const price=Number(prompt("Цена"));
+    const input=document.createElement("input");
+    input.type="file";
+    input.onchange=async e=>{
+      const file=e.target.files[0];
+      const imageRef=ref(storage,"flowers/"+Date.now());
+      await uploadBytes(imageRef,file);
+      const url=await getDownloadURL(imageRef);
+
+      await addDoc(collection(db,"flowers"),{
+        name,price,image:url
+      });
+    };
+    input.click();
+  };
+
+  return (
+    <>
+      <header>
+        <h2>🌸 Flower ULTRA</h2>
+        <div>
+          <button onClick={login}>Войти</button>
+          {user && <button className="primary" onClick={uploadFlower}>Добавить</button>}
+        </div>
+      </header>
+
+      <div className="grid">
+        {flowers.map(f=>(
+          <div className="card" key={f.id}>
+            <img src={f.image}/>
+            <div>
+              <h3>{f.name}</h3>
+              <p>{f.price} ₽</p>
+              <button className="primary" onClick={()=>addToCart(f)}>В корзину</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="cart">
+        <h3>Корзина</h3>
+        {cart.map((c,i)=>(
+          <div key={i}>
+            {c.name} — {c.price} ₽
+            <button onClick={()=>removeFromCart(i)}>❌</button>
+          </div>
+        ))}
+        <hr/>
+        <b>Итого: {cart.reduce((s,i)=>s+i.price,0)} ₽</b>
+        <br/><br/>
+        <button className="primary" onClick={checkout}>Оформить</button>
+      </div>
+
+      {user && (
+        <div style={{padding:"20px"}}>
+          <h3>Мои заказы</h3>
+          {orders.map((o,i)=>(
+            <div key={i}>
+              Сумма: {o.total} ₽ | Товаров: {o.items.length}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+
+</script>
 
 <script>
-const firebaseConfig = {
-  apiKey:"ТВОЙ_API_KEY",
-  authDomain:"flower-app-5a32c.firebaseapp.com",
-  projectId:"flower-app-5a32c"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-
-let cart = JSON.parse(localStorage.getItem("cart")) || [];
-updateCartUI();
-
-function saveCart(){
-  localStorage.setItem("cart",JSON.stringify(cart));
-}
-
-function toggleCart(){
-  const modal=document.getElementById("cartModal");
-  modal.style.display=modal.style.display==="block"?"none":"block";
-}
-
-function addToCart(item){
-  cart.push(item);
-  saveCart();
-  updateCartUI();
-}
-
-function removeFromCart(i){
-  cart.splice(i,1);
-  saveCart();
-  updateCartUI();
-}
-
-function updateCartUI(){
-  document.getElementById("cartCount").innerText=cart.length;
-  const div=document.getElementById("cartItems");
-  div.innerHTML="";
-  let total=0;
-  cart.forEach((item,i)=>{
-    total+=item.price;
-    div.innerHTML+=`
-      <div>
-        ${item.name} — ${item.price}₽
-        <button onclick="removeFromCart(${i})">❌</button>
-      </div>`;
-  });
-  document.getElementById("cartTotal").innerText="Итого: "+total+" ₽";
-}
-
-function checkout(){
-  const total=cart.reduce((sum,i)=>sum+i.price,0);
-  const text=cart.map(i=>i.name+" — "+i.price+"₽").join("\n");
-  window.open("https://t.me/vtaliy_gd?text="+encodeURIComponent("Заказ:\n"+text+"\n\nИтого: "+total+"₽"));
-}
-
-function renderFlowers(flowers){
-  const catalog=document.getElementById("catalog");
-  catalog.innerHTML="";
-  flowers.forEach(doc=>{
-    const f=doc.data();
-    catalog.innerHTML+=`
-      <div class="card">
-        <img src="${f.image}">
-        <div class="card-content">
-          <h3>${f.name}</h3>
-          <p>${f.description}</p>
-          <div class="price">${f.price} ₽</div>
-          <button class="primary" onclick='addToCart(${JSON.stringify(f)})'>В корзину</button>
-        </div>
-      </div>`;
-  });
-}
-
-db.collection("flowers").onSnapshot(snapshot=>{
-  let flowers=snapshot.docs;
-
-  const search=document.getElementById("search").value.toLowerCase();
-  const category=document.getElementById("categoryFilter").value;
-
-  flowers=flowers.filter(doc=>{
-    const f=doc.data();
-    return (!search||f.name.toLowerCase().includes(search)) &&
-           (!category||f.category===category);
-  });
-
-  renderFlowers(flowers);
-});
-
-document.getElementById("search").oninput=()=>{};
-document.getElementById("categoryFilter").onchange=()=>{};
-
-document.getElementById("loginBtn").onclick=()=>{
-  const email=prompt("Email");
-  const pass=prompt("Password");
-  auth.signInWithEmailAndPassword(email,pass)
-  .then(()=>{
-    document.getElementById("adminPanel").style.display="block";
-  })
-  .catch(()=>alert("Ошибка входа"));
-};
-
-function addFlower(){
-  db.collection("flowers").add({
-    name:name.value,
-    description:description.value,
-    price:Number(price.value),
-    image:image.value,
-    category:category.value
-  });
-}
+const swCode = `
+self.addEventListener('install', e=>self.skipWaiting());
+self.addEventListener('fetch', e=>{});
+`;
+const blob = new Blob([swCode], { type: 'text/javascript' });
+const swUrl = URL.createObjectURL(blob);
+navigator.serviceWorker.register(swUrl);
 </script>
 
 </body>
