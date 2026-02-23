@@ -11,66 +11,63 @@
 <style>
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #f4f4f4;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  background: #f7f7f7;
+  color: #111;
 }
 
 .app {
-  padding-bottom: 80px;
+  padding: 16px;
+  padding-bottom: 90px;
 }
 
 .header {
-  padding: 16px;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 18px;
 }
 
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 12px;
+  gap: 16px;
 }
 
 .card {
   background: white;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  position: relative;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04);
 }
 
 .card img {
   width: 100%;
-  height: 160px;
+  height: 170px;
   object-fit: cover;
 }
 
 .card-content {
-  padding: 10px;
+  padding: 14px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .price {
-  font-weight: bold;
-  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 6px 0 10px;
 }
 
-.favorite {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: white;
-  border-radius: 50%;
-  padding: 6px;
-  cursor: pointer;
-}
-
-.add-btn {
-  margin-top: 6px;
-  padding: 8px;
+.button {
   background: #2AABEE;
   color: white;
+  padding: 8px;
   text-align: center;
-  border-radius: 8px;
+  border-radius: 12px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -79,24 +76,19 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 70px;
+  height: 75px;
   background: white;
+  border-top: 1px solid #eee;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  border-top: 1px solid #ddd;
 }
 
 .nav-item {
-  text-align: center;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.nav-item span {
-  display: block;
   font-size: 11px;
-  margin-top: 2px;
+  color: #888;
+  text-align: center;
+  cursor: pointer;
 }
 
 .nav-item.active {
@@ -110,6 +102,15 @@ body {
 .screen.active {
   display: block;
 }
+
+.cart-item {
+  background: white;
+  padding: 12px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
 </style>
 </head>
 
@@ -117,33 +118,26 @@ body {
 
 <div class="app">
 
-  <div class="header">🌸 Flower Shop</div>
-
   <div id="homeScreen" class="screen active">
+    <div class="header">🌸 Flower Shop</div>
     <div id="catalog" class="grid"></div>
   </div>
 
   <div id="cartScreen" class="screen">
-    <div style="padding:16px;">
-      <h3>Корзина</h3>
-      <div id="cartItems"></div>
-      <div id="cartTotal" style="margin-top:10px;font-weight:bold;"></div>
-      <div class="add-btn" onclick="checkout()">Оформить заказ</div>
-    </div>
+    <div class="header">Корзина</div>
+    <div id="cartItems"></div>
+    <div id="cartTotal" style="margin-top:12px;font-weight:700;"></div>
   </div>
 
-  <div id="favScreen" class="screen">
-    <div style="padding:16px;">
-      <h3>Избранное</h3>
-      <div id="favItems"></div>
-    </div>
+  <div id="profileScreen" class="screen">
+    <div class="header">Профиль</div>
+    <div id="profileData"></div>
   </div>
 
   <div class="bottom-nav">
-    <div class="nav-item active" onclick="showScreen('homeScreen', this)">🏠<span>Главная</span></div>
-    <div class="nav-item" onclick="showScreen('favScreen', this)">❤️<span>Избранное</span></div>
-    <div class="nav-item" onclick="showScreen('cartScreen', this)">🛒<span>Корзина</span></div>
-    <div class="nav-item">👤<span>Профиль</span></div>
+    <div class="nav-item active" onclick="switchScreen('homeScreen', this)">🏠<br>Главная</div>
+    <div class="nav-item" onclick="switchScreen('cartScreen', this)">🛒<br>Корзина</div>
+    <div class="nav-item" onclick="switchScreen('profileScreen', this)">👤<br>Профиль</div>
   </div>
 
 </div>
@@ -161,23 +155,26 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let cart = [];
-let favorites = [];
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
 
 const catalogDiv = document.getElementById("catalog");
 
 function loadFlowers() {
+  catalogDiv.innerHTML = "";
+
   db.collection("flowers").get().then(snapshot => {
     snapshot.forEach(doc => {
       const flower = doc.data();
+
       catalogDiv.innerHTML += `
         <div class="card">
-          <div class="favorite" onclick="toggleFavorite('${doc.id}','${flower.name}',${flower.price})">❤️</div>
           <img src="${flower.image}" onerror="this.src='https://via.placeholder.com/400x300?text=Flower'">
           <div class="card-content">
-            <div>${flower.name}</div>
+            <div class="title">${flower.name}</div>
             <div class="price">${flower.price} ₽</div>
-            <div class="add-btn" onclick="addToCart('${flower.name}', ${flower.price})">В корзину</div>
+            <div class="button" onclick="addToCart('${flower.name}', ${flower.price})">
+              В корзину
+            </div>
           </div>
         </div>
       `;
@@ -187,57 +184,53 @@ function loadFlowers() {
 
 loadFlowers();
 
-function addToCart(name, price) {
-  cart.push({name, price});
-  alert("Добавлено в корзину");
-}
-
-function toggleFavorite(id, name, price) {
-  favorites.push({name, price});
-  alert("Добавлено в избранное");
-}
-
-function showScreen(id, el) {
+function switchScreen(id, el) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
 
-  if(id === "cartScreen") renderCart();
-  if(id === "favScreen") renderFav();
+  if (id === "cartScreen") renderCart();
+  if (id === "profileScreen") loadProfile();
+}
+
+function addToCart(name, price) {
+  cart.push({name, price});
+  localStorage.setItem("cart", JSON.stringify(cart));
 }
 
 function renderCart() {
-  const cartDiv = document.getElementById("cartItems");
+  const div = document.getElementById("cartItems");
   const totalDiv = document.getElementById("cartTotal");
-  cartDiv.innerHTML = "";
+
+  div.innerHTML = "";
   let total = 0;
 
   cart.forEach(item => {
     total += item.price;
-    cartDiv.innerHTML += `<div>${item.name} — ${item.price} ₽</div>`;
+    div.innerHTML += `
+      <div class="cart-item">
+        <div>${item.name}</div>
+        <div>${item.price} ₽</div>
+      </div>
+    `;
   });
 
   totalDiv.innerText = "Итого: " + total + " ₽";
 }
 
-function renderFav() {
-  const favDiv = document.getElementById("favItems");
-  favDiv.innerHTML = "";
-
-  favorites.forEach(item => {
-    favDiv.innerHTML += `<div>${item.name} — ${item.price} ₽</div>`;
-  });
-}
-
-function checkout() {
-  let text = "Хочу заказать:\n";
-  cart.forEach(item => {
-    text += item.name + " — " + item.price + "₽\n";
-  });
-
-  window.open("https://t.me/vtaliy_gd?text=" + encodeURIComponent(text));
+function loadProfile() {
+  if (window.Telegram && Telegram.WebApp) {
+    const user = Telegram.WebApp.initDataUnsafe.user;
+    if (user) {
+      document.getElementById("profileData").innerHTML = `
+        <div>Имя: ${user.first_name}</div>
+        <div>Username: @${user.username || ''}</div>
+        <div>ID: ${user.id}</div>
+      `;
+    }
+  }
 }
 
 if (window.Telegram && Telegram.WebApp) {
