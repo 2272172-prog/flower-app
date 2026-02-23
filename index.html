@@ -101,8 +101,8 @@ catalogDiv.innerHTML += `
       <h3>${flower.name}</h3>
       <p>${flower.description}</p>
       <div class="price">${flower.price} ₽</div>
-      <a class="btn" target="_blank"
-   href="https://t.me/@vtaliy_gd?text=Хочу заказать ${flower.name} за ${flower.price}₽">
+     <a class="btn" target="_blank"
+   href="https://t.me/vtaliy_gd?text=${encodeURIComponent('Хочу заказать ' + flower.name + ' за ' + flower.price + '₽')}">
    Заказать
 </a>
     </div>
