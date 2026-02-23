@@ -80,12 +80,53 @@
       cursor: pointer;
     }
 
+    .add-btn {
+      display: none;
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      background: #e91e63;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
     .delete-btn {
       margin-top: 10px;
       background: red;
       color: white;
       border: none;
       padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .admin-form {
+      display: none;
+      position: fixed;
+      top: 120px;
+      right: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      width: 250px;
+    }
+
+    .admin-form input {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 6px;
+    }
+
+    .admin-form button {
+      width: 100%;
+      background: #e91e63;
+      color: white;
+      border: none;
+      padding: 8px;
       border-radius: 6px;
       cursor: pointer;
     }
@@ -97,8 +138,17 @@
 <h1>🌸 Flower Shop</h1>
 
 <button class="admin-btn" onclick="adminLogin()">🔐</button>
+<button class="add-btn" id="addBtn">➕</button>
 
 <div id="catalog"></div>
+
+<div class="admin-form" id="adminForm">
+  <input id="name" placeholder="Название">
+  <input id="description" placeholder="Описание">
+  <input id="price" placeholder="Цена" type="number">
+  <input id="image" placeholder="Ссылка на картинку">
+  <button onclick="saveFlower()">Сохранить</button>
+</div>
 
 <script>
   let isAdmin = false;
@@ -116,6 +166,8 @@
   const db = firebase.firestore();
 
   const catalogDiv = document.getElementById("catalog");
+  const addBtn = document.getElementById("addBtn");
+  const adminForm = document.getElementById("adminForm");
 
   function loadFlowers() {
     catalogDiv.innerHTML = "";
@@ -149,6 +201,7 @@
     const pass = prompt("Введите пароль администратора");
     if (pass === "1234") {
       isAdmin = true;
+      addBtn.style.display = "block";
       alert("Режим администратора включен");
       loadFlowers();
     } else {
@@ -156,30 +209,29 @@
     }
   }
 
+  addBtn.onclick = () => {
+    adminForm.style.display = adminForm.style.display === "none" ? "block" : "none";
+  };
+
+  function saveFlower() {
+    db.collection("flowers").add({
+      name: document.getElementById("name").value,
+      description: document.getElementById("description").value,
+      price: Number(document.getElementById("price").value),
+      image: document.getElementById("image").value
+    }).then(() => {
+      alert("Добавлено");
+      adminForm.style.display = "none";
+      loadFlowers();
+    });
+  }
+
   function deleteFlower(id) {
     if (confirm("Удалить товар?")) {
       db.collection("flowers").doc(id).delete().then(() => {
-        alert("Удалено");
         loadFlowers();
       });
     }
-  }
-
-  function addFlower() {
-    const name = prompt("Название:");
-    const description = prompt("Описание:");
-    const price = prompt("Цена:");
-    const image = prompt("Ссылка на картинку:");
-
-    db.collection("flowers").add({
-      name: name,
-      description: description,
-      price: Number(price),
-      image: image
-    }).then(() => {
-      alert("Добавлено");
-      loadFlowers();
-    });
   }
 </script>
 
