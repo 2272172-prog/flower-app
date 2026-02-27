@@ -1,9 +1,9 @@
 document.body.insertAdjacentHTML("afterbegin", "<div style='padding:10px;background:#d1fae5'>app.js работает ✅</div>");
 // ====== FIREBASE CONFIG ======
 const firebaseConfig = {
-  apiKey: "ТВОЙ_API_KEY",
-  authDomain: "ТВОЙ_PROJECT.firebaseapp.com",
-  projectId: "ТВОЙ_PROJECT_ID"
+  apiKey: "AIzaSyAL1CfJ2NaTiu1uc4ybH8lUdnUeBNNpXLw",
+  authDomain: "flower-app-5a32c.firebaseapp.com",
+  projectId: "flower-app-5a32c",
 };
 
 firebase.initializeApp(firebaseConfig);
