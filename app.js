@@ -1,5 +1,5 @@
 // =====================
-// app.js (FULL)
+// app.js (FULL + cart badge + toast)
 // =====================
 
 // ====== 0) HELPERS ======
@@ -13,11 +13,13 @@ const escapeHtml = (s) =>
     .replaceAll("'", "&#039;");
 
 // ====== 1) FIREBASE CONFIG ======
-// ВАЖНО: вставь сюда свой реальный конфиг из Firebase (Project settings → flower-web → CDN/Config)
+// Вставь свой конфиг из Firebase (Project settings → Your apps → flower-web → CDN)
 const firebaseConfig = {
   apiKey: "AIzaSyAL1CfJ2NaTiu1uc4ybH8lUdnUeBNNpXLw",
   authDomain: "flower-app-5a32c.firebaseapp.com",
   projectId: "flower-app-5a32c",
+  // storageBucket сейчас не используется (мы грузим фото по URL из images[]),
+  // но оставляем как есть. Если позже будем загружать фото в Storage — поправим при необходимости.
   storageBucket: "flower-app-5a32c.firebasestorage.app",
   messagingSenderId: "540208840853",
   appId: "1:540208840853:web:250f64a9ceedde1620db9c",
@@ -67,6 +69,26 @@ function cartCount() {
   return Object.values(cart).reduce((s, it) => s + (it.qty || 0), 0);
 }
 
+// --- UI: badge + toast ---
+function updateCartUI() {
+  const el = document.getElementById("cartCount");
+  if (el) el.textContent = String(cartCount());
+}
+
+let toastTimer = null;
+function showToast(text = "Добавлено в корзину ✅") {
+  const t = document.getElementById("toast");
+  if (!t) return;
+
+  t.textContent = text;
+  t.style.display = "block";
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    t.style.display = "none";
+  }, 1200);
+}
+
 function addToCart(id, data) {
   if (!cart[id]) {
     cart[id] = {
@@ -79,18 +101,18 @@ function addToCart(id, data) {
   cart[id].qty += 1;
   saveCart();
 
-  // лёгкий фидбек
+  // Telegram haptic (если внутри Telegram)
   if (window.Telegram?.WebApp?.HapticFeedback) {
     try {
       Telegram.WebApp.HapticFeedback.impactOccurred("light");
     } catch {}
   }
 
-  // простое уведомление
-  console.log("Cart items:", cartCount());
+  updateCartUI();
+  showToast();
 }
 
-// ====== 5) RENDER ======
+// ====== 5) RENDER CATALOG ======
 const catalogDiv = document.getElementById("catalog");
 if (!catalogDiv) {
   console.warn("Не найден #catalog в index.html");
@@ -158,3 +180,6 @@ db.collection("flowers").onSnapshot(
     );
   }
 );
+
+// ====== 7) BOOT ======
+updateCartUI();
