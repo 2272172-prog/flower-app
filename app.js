@@ -1,12 +1,20 @@
 // ===============================
-// MEMENTO FLOS — STABLE VERSION (CLEAN)
-// Catalog + Admin + Storage Upload
-// Fix: admin modal jumping + no duplicate declarations
+// MEMENTO FLOS — FREE VERSION
+// Firestore + manual image URLs
+// Admin: add multiple links, CRUD
 // ===============================
 
-// ---------- HELPERS ----------
-const money = (n) => (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
+const firebaseConfig = {
+  apiKey: "AIzaSyAL1CfJ2NaTiu1uc4ybH8lUdnUeBNNpXLw",
+  authDomain: "flower-app-5a32c.firebaseapp.com",
+  projectId: "flower-app-5a32c",
+};
 
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// --- Helpers ---
+const money = (n) => (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
 const escapeHtml = (s) =>
   String(s ?? "")
     .replaceAll("&", "&amp;")
@@ -16,47 +24,24 @@ const escapeHtml = (s) =>
     .replaceAll("'", "&#039;");
 
 let toastTimer = null;
-function showToast(text = "Готово") {
+function showToast(text = "Готово ✅") {
   const t = document.getElementById("toast");
   if (!t) return;
   t.textContent = text;
   t.style.display = "block";
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.style.display = "none"), 1600);
+  toastTimer = setTimeout(() => (t.style.display = "none"), 1800);
 }
 
-// ---------- FIREBASE ----------
-const firebaseConfig = {
-  apiKey: "AIzaSyAL1CfJ2NaTiu1uc4ybH8lUdnUeBNNpXLw",
-  authDomain: "flower-app-5a32c.firebaseapp.com",
-  projectId: "flower-app-5a32c",
-  storageBucket: "flower-app-5a32c.firebasestorage.app",
-  messagingSenderId: "540208840853",
-  appId: "1:540208840853:web:250f64a9ceedde1620db9c",
-};
-
-firebase.initializeApp(firebaseConfig);
-
-const db = firebase.firestore();
-const storage = firebase.storage();
-
-// ---------- TELEGRAM ----------
+// --- Telegram / Admin ---
 const tg = window.Telegram?.WebApp || null;
 let tgUser = null;
+if (tg) tgUser = tg.initDataUnsafe?.user || null;
 
-if (tg) {
-  tg.expand();
-  tg.ready?.();
-  tgUser = tg.initDataUnsafe?.user || null;
-}
-
-// ---------- ADMIN ----------
 const ADMIN_IDS = [41830773];
-let isAdmin = false;
-let adminOpen = false;
-let editingFlowerId = null;
+const isAdmin = Boolean(tgUser && ADMIN_IDS.includes(Number(tgUser.id)));
 
-// ---------- DOM ----------
+// --- DOM ---
 const catalogDiv = document.getElementById("catalog");
 
 const adminBtn = document.getElementById("adminBtn");
@@ -70,170 +55,101 @@ const adDesc = document.getElementById("adDesc");
 
 const imgRows = document.getElementById("imgRows");
 const addImgRowBtn = document.getElementById("addImgRow");
+const clearImgsBtn = document.getElementById("clearImgs");
 
 const adSave = document.getElementById("adSave");
 const adClear = document.getElementById("adClear");
 
 const adminList = document.getElementById("adminList");
 
-// ---------- STATE ----------
+// --- State ---
 let lastCatalog = [];
+let editingId = null;
+let adminOpen = false;
 
-// ===============================
-// ADMIN ACCESS
-// ===============================
-function initAdminAccess() {
-  isAdmin = Boolean(tgUser && ADMIN_IDS.includes(Number(tgUser.id)));
-  if (adminBtn) adminBtn.style.display = isAdmin ? "inline-flex" : "none";
-}
+// --- Admin UI open/close ---
+if (adminBtn) adminBtn.style.display = isAdmin ? "inline-block" : "none";
 
-// ===============================
-// ADMIN MODAL (FIX JUMPING)
-// ===============================
-function openAdminModal() {
+function openAdmin() {
   if (!isAdmin) return;
   adminOpen = true;
-  if (adminModalBg) adminModalBg.style.display = "flex";
-
-  // фикс прыжков/скролла при клавиатуре
+  adminModalBg.style.display = "flex";
   document.body.classList.add("modal-open");
-
   renderAdminList();
 }
 
-function closeAdminModal() {
+function closeAdmin() {
   adminOpen = false;
-  if (adminModalBg) adminModalBg.style.display = "none";
+  adminModalBg.style.display = "none";
   document.body.classList.remove("modal-open");
 }
 
-if (adminBtn) adminBtn.addEventListener("click", openAdminModal);
-if (adminClose) adminClose.addEventListener("click", closeAdminModal);
-
-// (опционально) закрытие кликом по фону
+if (adminBtn) adminBtn.addEventListener("click", openAdmin);
+if (adminClose) adminClose.addEventListener("click", closeAdmin);
 if (adminModalBg) {
   adminModalBg.addEventListener("click", (e) => {
-    if (e.target === adminModalBg) closeAdminModal();
+    if (e.target === adminModalBg) closeAdmin();
   });
 }
 
-// ===============================
-// STORAGE UPLOAD
-// ===============================
-async function uploadImage(file) {
-  const fileName = Date.now() + "_" + file.name;
-  const ref = storage.ref().child("products/" + fileName);
-  await ref.put(file);
-  return await ref.getDownloadURL();
-}
-
-// ===============================
-// IMAGE ROWS (URL + Upload)
-// ===============================
+// --- Images rows ---
 function createImgRow(url = "") {
   const row = document.createElement("div");
-  row.className = "img-row";
+  row.className = "imgRow";
 
   const input = document.createElement("input");
   input.className = "input";
   input.placeholder = "https://...jpg";
   input.value = url;
 
-  const fileInput = document.createElement("input");
-  fileInput.type = "file";
-  fileInput.accept = "image/*";
-
-  fileInput.addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      showToast("Загрузка фото...");
-      const uploadedUrl = await uploadImage(file);
-      input.value = uploadedUrl;
-      showToast("Фото загружено ✅");
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Не удалось загрузить фото. Проверь Firebase Storage Rules.");
-    } finally {
-      // сброс, чтобы можно было выбрать тот же файл повторно
-      fileInput.value = "";
-    }
-  });
-
   const del = document.createElement("button");
+  del.className = "mini";
   del.type = "button";
   del.textContent = "🗑";
   del.onclick = () => row.remove();
 
   row.appendChild(input);
-  row.appendChild(fileInput);
   row.appendChild(del);
-
   return row;
 }
 
 function getImages() {
-  if (!imgRows) return [];
-  return Array.from(imgRows.querySelectorAll("input.input"))
+  return Array.from(imgRows.querySelectorAll("input"))
     .map((i) => i.value.trim())
     .filter(Boolean);
 }
 
-if (addImgRowBtn) {
-  addImgRowBtn.addEventListener("click", () => {
-    if (!imgRows) return;
-    imgRows.appendChild(createImgRow());
-  });
+function setImages(urls = []) {
+  imgRows.innerHTML = "";
+  (urls.length ? urls : [""]).forEach((u) => imgRows.appendChild(createImgRow(u)));
 }
 
-// ===============================
-// ADMIN LIST (does NOT touch the form)
-// ===============================
-function renderAdminList() {
-  if (!adminList) return;
+if (addImgRowBtn) addImgRowBtn.addEventListener("click", () => imgRows.appendChild(createImgRow("")));
+if (clearImgsBtn) clearImgsBtn.addEventListener("click", () => setImages([]));
 
-  if (!lastCatalog.length) {
-    adminList.innerHTML = `<div class="admin-item"><div style="opacity:.7;">Пока нет товаров</div></div>`;
-    return;
-  }
-
-  adminList.innerHTML = lastCatalog
-    .map(
-      (p) => `
-      <div class="admin-item">
-        <div>
-          <strong>${escapeHtml(p.name || "Без названия")}</strong><br>
-          <small>${money(p.price || 0)} · фото: ${p.images?.length || 0}</small>
-        </div>
-      </div>
-    `
-    )
-    .join("");
+// --- Form reset ---
+function clearForm() {
+  editingId = null;
+  adName.value = "";
+  adPrice.value = "";
+  adCategory.value = "";
+  adDesc.value = "";
+  setImages([]);
 }
 
-// ===============================
-// SAVE FLOWER
-// ===============================
-if (adClear) {
-  adClear.addEventListener("click", () => {
-    editingFlowerId = null;
-    if (adName) adName.value = "";
-    if (adPrice) adPrice.value = "";
-    if (adCategory) adCategory.value = "";
-    if (adDesc) adDesc.value = "";
-    if (imgRows) imgRows.innerHTML = "";
-    showToast("Очищено");
-  });
-}
+if (adClear) adClear.addEventListener("click", () => {
+  clearForm();
+  showToast("Форма очищена");
+});
 
+// --- Save (create/update) ---
 if (adSave) {
   adSave.addEventListener("click", async () => {
     const data = {
-      name: (adName?.value || "").trim(),
-      price: Number(adPrice?.value || 0),
-      category: (adCategory?.value || "").trim(),
-      desc: (adDesc?.value || "").trim(),
+      name: adName.value.trim(),
+      price: Number(adPrice.value || 0),
+      category: adCategory.value.trim(),
+      desc: adDesc.value.trim(),
       images: getImages(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
@@ -244,76 +160,117 @@ if (adSave) {
     }
 
     try {
-      if (editingFlowerId) {
-        await db.collection("flowers").doc(editingFlowerId).set(data, { merge: true });
+      if (editingId) {
+        await db.collection("flowers").doc(editingId).set(data, { merge: true });
+        showToast("Обновлено ✅");
       } else {
         await db.collection("flowers").add({
           ...data,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
+        showToast("Добавлено ✅");
       }
-
-      showToast("Сохранено ✅");
-    } catch (err) {
-      console.error("Save error:", err);
+      clearForm();
+    } catch (e) {
+      console.error(e);
       alert("Ошибка сохранения. Проверь Firestore Rules.");
     }
   });
 }
 
-// ===============================
-// CATALOG
-// ===============================
-function renderProducts(snapshot) {
-  if (!catalogDiv) return;
+// --- Admin list ---
+function renderAdminList() {
+  if (!adminList) return;
 
-  catalogDiv.innerHTML = "";
+  if (!lastCatalog.length) {
+    adminList.innerHTML = `<div class="adminItem"><div class="small">Пока нет товаров</div></div>`;
+    return;
+  }
+
+  adminList.innerHTML = lastCatalog
+    .map(
+      (p) => `
+      <div class="adminItem">
+        <div style="min-width:0;">
+          <div style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name || "Без названия")}</div>
+          <div class="small">${money(p.price || 0)} · фото: ${p.images?.length || 0}</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="mini" type="button" onclick="window.__editFlower('${p.id}')">✏️</button>
+          <button class="mini" type="button" onclick="window.__delFlower('${p.id}')">🗑</button>
+        </div>
+      </div>
+    `
+    )
+    .join("");
+}
+
+window.__editFlower = function (id) {
+  const p = lastCatalog.find((x) => x.id === id);
+  if (!p) return;
+
+  editingId = id;
+  adName.value = p.name || "";
+  adPrice.value = String(p.price || "");
+  adCategory.value = p.category || "";
+  adDesc.value = p.desc || "";
+  setImages(Array.isArray(p.images) ? p.images : []);
+  showToast("Режим редактирования");
+};
+
+window.__delFlower = async function (id) {
+  if (!confirm("Удалить товар?")) return;
+  try {
+    await db.collection("flowers").doc(id).delete();
+    showToast("Удалено ✅");
+    if (editingId === id) clearForm();
+  } catch (e) {
+    console.error(e);
+    alert("Ошибка удаления. Проверь Rules.");
+  }
+};
+
+// --- Catalog render (показываем 1-е фото как обложку) ---
+function renderCatalog(snapshot) {
   lastCatalog = [];
+  catalogDiv.innerHTML = "";
 
   snapshot.forEach((doc) => {
-    const data = doc.data() || {};
-    const id = doc.id;
+    const d = doc.data() || {};
+    const p = { id: doc.id, ...d };
+    lastCatalog.push(p);
 
-    const product = { id, ...data };
-    lastCatalog.push(product);
-
-    const cover = data.images?.[0] || "https://via.placeholder.com/600x400?text=Flower";
+    const cover = (Array.isArray(p.images) && p.images[0]) ? p.images[0] : "https://via.placeholder.com/600x400?text=Flower";
 
     catalogDiv.innerHTML += `
       <div class="card">
         <img src="${escapeHtml(cover)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/600x400?text=Flower';">
-        <div class="card-body">
-          <div class="card-title">${escapeHtml(data.name || "Без названия")}</div>
-          <div class="price">${money(data.price || 0)}</div>
+        <div class="cb">
+          <div class="ct">${escapeHtml(p.name || "Без названия")}</div>
+          <div class="price">${money(p.price || 0)}</div>
         </div>
       </div>
     `;
   });
 
-  // обновляем список только если админка открыта
   if (isAdmin && adminOpen) renderAdminList();
 }
 
-db.collection("flowers").onSnapshot(
-  (snapshot) => {
-    if (!catalogDiv) return;
-
-    if (snapshot.empty) {
-      catalogDiv.innerHTML = "<div style='padding:20px;'>Нет товаров</div>";
+db.collection("flowers").orderBy("createdAt", "desc").onSnapshot(
+  (snap) => {
+    if (snap.empty) {
+      catalogDiv.innerHTML = `<div style="padding:18px;color:rgba(0,0,0,.6)">Товаров нет</div>`;
       lastCatalog = [];
       if (isAdmin && adminOpen) renderAdminList();
       return;
     }
-
-    renderProducts(snapshot);
+    renderCatalog(snap);
   },
   (err) => {
-    console.error("Firestore error:", err);
-    alert("Ошибка Firestore. Проверь Rules и настройки проекта.");
+    console.error(err);
+    alert("Ошибка Firestore: " + (err?.message || err));
   }
 );
 
-// ===============================
-// INIT
-// ===============================
-initAdminAccess();
+// init form images
+setImages([]);
