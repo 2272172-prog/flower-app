@@ -20,7 +20,7 @@
 <div class="app">
 
  <header>
-  <h1>🌸 Flower Shop</h1>
+  <h1>MEMENTO FLOS </h1>
 
   <div style="display:flex; gap:10px; align-items:center;">
     <div id="cartPill" style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:999px; background:#fff; box-shadow:0 6px 16px rgba(0,0,0,.06); font-weight:700;">
@@ -29,7 +29,16 @@
 
     <button id="adminBtn" style="display:none;">Админ</button>
   </div>
+<header>
+  <h1>MEMENTO FLOS </h1>
+  <button id="adminBtn" style="display:none;">Админ</button>
 </header>
+
+<div id="toast" style="position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#111827; color:#fff; padding:10px 12px; border-radius:12px; font-weight:700; display:none; z-index:9999;">
+  Отправляем заказ…
+</div>
+
+<div id="catalog" class="grid"></div>
 
 <div id="toast" style="position:fixed; left:50%; bottom:88px; transform:translateX(-50%); background:#111827; color:#fff; padding:10px 12px; border-radius:12px; font-weight:700; display:none; z-index:9999;">
   Добавлено в корзину ✅
