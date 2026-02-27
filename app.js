@@ -76,6 +76,35 @@ const adSave = document.getElementById("adSave");
 const adClear = document.getElementById("adClear");
 
 const adminList = document.getElementById("adminList");
+// ===== ADMIN MODAL CONTROL (FIX JUMPING + DISAPPEAR BUG) =====
+
+let adminOpen = false;
+
+function openAdminModal() {
+  adminOpen = true;
+  if (adminModalBg) adminModalBg.style.display = "flex";
+
+  // 🔥 фикс прыжков при клавиатуре
+  document.body.classList.add("modal-open");
+
+  renderAdminList(); // обновляем список только при открытии
+}
+
+function closeAdminModal() {
+  adminOpen = false;
+  if (adminModalBg) adminModalBg.style.display = "none";
+
+  document.body.classList.remove("modal-open");
+}
+
+// кнопки
+if (adminBtn) {
+  adminBtn.addEventListener("click", openAdminModal);
+}
+
+if (adminClose) {
+  adminClose.addEventListener("click", closeAdminModal);
+}
 
 // ---------- STATE ----------
 let lastCatalog = [];
