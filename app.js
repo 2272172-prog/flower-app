@@ -1,12 +1,11 @@
 // ===============================
-// MEMENTO FLOS — STABLE VERSION
-// Catalog + Modal + Order + Admin + Storage
-// FIXED admin disappearing bug
+// MEMENTO FLOS — STABLE VERSION (CLEAN)
+// Catalog + Admin + Storage Upload
+// Fix: admin modal jumping + no duplicate declarations
 // ===============================
 
 // ---------- HELPERS ----------
-const money = (n) =>
-  (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
+const money = (n) => (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
 
 const escapeHtml = (s) =>
   String(s ?? "")
@@ -76,35 +75,6 @@ const adSave = document.getElementById("adSave");
 const adClear = document.getElementById("adClear");
 
 const adminList = document.getElementById("adminList");
-// ===== ADMIN MODAL CONTROL (FIX JUMPING + DISAPPEAR BUG) =====
-
-let adminOpen = false;
-
-function openAdminModal() {
-  adminOpen = true;
-  if (adminModalBg) adminModalBg.style.display = "flex";
-
-  // 🔥 фикс прыжков при клавиатуре
-  document.body.classList.add("modal-open");
-
-  renderAdminList(); // обновляем список только при открытии
-}
-
-function closeAdminModal() {
-  adminOpen = false;
-  if (adminModalBg) adminModalBg.style.display = "none";
-
-  document.body.classList.remove("modal-open");
-}
-
-// кнопки
-if (adminBtn) {
-  adminBtn.addEventListener("click", openAdminModal);
-}
-
-if (adminClose) {
-  adminClose.addEventListener("click", closeAdminModal);
-}
 
 // ---------- STATE ----------
 let lastCatalog = [];
@@ -118,6 +88,36 @@ function initAdminAccess() {
 }
 
 // ===============================
+// ADMIN MODAL (FIX JUMPING)
+// ===============================
+function openAdminModal() {
+  if (!isAdmin) return;
+  adminOpen = true;
+  if (adminModalBg) adminModalBg.style.display = "flex";
+
+  // фикс прыжков/скролла при клавиатуре
+  document.body.classList.add("modal-open");
+
+  renderAdminList();
+}
+
+function closeAdminModal() {
+  adminOpen = false;
+  if (adminModalBg) adminModalBg.style.display = "none";
+  document.body.classList.remove("modal-open");
+}
+
+if (adminBtn) adminBtn.addEventListener("click", openAdminModal);
+if (adminClose) adminClose.addEventListener("click", closeAdminModal);
+
+// (опционально) закрытие кликом по фону
+if (adminModalBg) {
+  adminModalBg.addEventListener("click", (e) => {
+    if (e.target === adminModalBg) closeAdminModal();
+  });
+}
+
+// ===============================
 // STORAGE UPLOAD
 // ===============================
 async function uploadImage(file) {
@@ -128,67 +128,7 @@ async function uploadImage(file) {
 }
 
 // ===============================
-// CATALOG
-// ===============================
-function renderProducts(snapshot) {
-  catalogDiv.innerHTML = "";
-  lastCatalog = [];
-
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    const id = doc.id;
-
-    const product = { id, ...data };
-    lastCatalog.push(product);
-
-    const cover =
-      data.images?.[0] ||
-      "https://via.placeholder.com/600x400?text=Flower";
-
-    catalogDiv.innerHTML += `
-      <div class="card">
-        <img src="${cover}">
-        <div class="card-body">
-          <div class="card-title">${escapeHtml(data.name)}</div>
-          <div class="price">${money(data.price)}</div>
-        </div>
-      </div>
-    `;
-  });
-
-  // 🔥 ВАЖНО — админ-лист обновляем ТОЛЬКО если модалка открыта
-  if (isAdmin && adminOpen) renderAdminList();
-}
-
-db.collection("flowers").onSnapshot(snapshot => {
-  if (snapshot.empty) {
-    catalogDiv.innerHTML =
-      "<div style='padding:20px;'>Нет товаров</div>";
-    return;
-  }
-  renderProducts(snapshot);
-});
-
-// ===============================
-// ADMIN MODAL
-// ===============================
-function openAdminModal() {
-  if (!isAdmin) return;
-  adminOpen = true;
-  adminModalBg.style.display = "flex";
-  renderAdminList();
-}
-
-function closeAdminModal() {
-  adminOpen = false;
-  adminModalBg.style.display = "none";
-}
-
-if (adminBtn) adminBtn.addEventListener("click", openAdminModal);
-if (adminClose) adminClose.addEventListener("click", closeAdminModal);
-
-// ===============================
-// IMAGE ROWS
+// IMAGE ROWS (URL + Upload)
 // ===============================
 function createImgRow(url = "") {
   const row = document.createElement("div");
@@ -203,17 +143,26 @@ function createImgRow(url = "") {
   fileInput.type = "file";
   fileInput.accept = "image/*";
 
-  fileInput.addEventListener("change", async e => {
-    const file = e.target.files[0];
+  fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    showToast("Загрузка фото...");
-    const uploadedUrl = await uploadImage(file);
-    input.value = uploadedUrl;
-    showToast("Фото загружено ✅");
+    try {
+      showToast("Загрузка фото...");
+      const uploadedUrl = await uploadImage(file);
+      input.value = uploadedUrl;
+      showToast("Фото загружено ✅");
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Не удалось загрузить фото. Проверь Firebase Storage Rules.");
+    } finally {
+      // сброс, чтобы можно было выбрать тот же файл повторно
+      fileInput.value = "";
+    }
   });
 
   const del = document.createElement("button");
+  del.type = "button";
   del.textContent = "🗑";
   del.onclick = () => row.remove();
 
@@ -225,67 +174,144 @@ function createImgRow(url = "") {
 }
 
 function getImages() {
+  if (!imgRows) return [];
   return Array.from(imgRows.querySelectorAll("input.input"))
-    .map(i => i.value.trim())
+    .map((i) => i.value.trim())
     .filter(Boolean);
 }
 
 if (addImgRowBtn) {
   addImgRowBtn.addEventListener("click", () => {
+    if (!imgRows) return;
     imgRows.appendChild(createImgRow());
   });
 }
 
 // ===============================
-// SAVE FLOWER
-// ===============================
-if (adSave) {
-  adSave.addEventListener("click", async () => {
-    const data = {
-      name: adName.value.trim(),
-      price: Number(adPrice.value),
-      category: adCategory.value.trim(),
-      desc: adDesc.value.trim(),
-      images: getImages(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    };
-
-    if (!data.name || !data.price) {
-      alert("Название и цена обязательны");
-      return;
-    }
-
-    if (editingFlowerId) {
-      await db.collection("flowers")
-        .doc(editingFlowerId)
-        .set(data, { merge: true });
-    } else {
-      await db.collection("flowers").add({
-        ...data,
-        createdAt:
-          firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-
-    showToast("Сохранено ✅");
-  });
-}
-
-// ===============================
-// ADMIN LIST (НЕ ТРОГАЕТ ФОРМУ)
+// ADMIN LIST (does NOT touch the form)
 // ===============================
 function renderAdminList() {
   if (!adminList) return;
 
-  adminList.innerHTML = lastCatalog.map(p => `
-    <div class="admin-item">
-      <div>
-        <strong>${escapeHtml(p.name)}</strong><br>
-        <small>${money(p.price)} · фото: ${p.images?.length || 0}</small>
+  if (!lastCatalog.length) {
+    adminList.innerHTML = `<div class="admin-item"><div style="opacity:.7;">Пока нет товаров</div></div>`;
+    return;
+  }
+
+  adminList.innerHTML = lastCatalog
+    .map(
+      (p) => `
+      <div class="admin-item">
+        <div>
+          <strong>${escapeHtml(p.name || "Без названия")}</strong><br>
+          <small>${money(p.price || 0)} · фото: ${p.images?.length || 0}</small>
+        </div>
       </div>
-    </div>
-  `).join("");
+    `
+    )
+    .join("");
 }
+
+// ===============================
+// SAVE FLOWER
+// ===============================
+if (adClear) {
+  adClear.addEventListener("click", () => {
+    editingFlowerId = null;
+    if (adName) adName.value = "";
+    if (adPrice) adPrice.value = "";
+    if (adCategory) adCategory.value = "";
+    if (adDesc) adDesc.value = "";
+    if (imgRows) imgRows.innerHTML = "";
+    showToast("Очищено");
+  });
+}
+
+if (adSave) {
+  adSave.addEventListener("click", async () => {
+    const data = {
+      name: (adName?.value || "").trim(),
+      price: Number(adPrice?.value || 0),
+      category: (adCategory?.value || "").trim(),
+      desc: (adDesc?.value || "").trim(),
+      images: getImages(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (!data.name || !Number.isFinite(data.price) || data.price <= 0) {
+      alert("Название и цена обязательны (цена > 0)");
+      return;
+    }
+
+    try {
+      if (editingFlowerId) {
+        await db.collection("flowers").doc(editingFlowerId).set(data, { merge: true });
+      } else {
+        await db.collection("flowers").add({
+          ...data,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      showToast("Сохранено ✅");
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Ошибка сохранения. Проверь Firestore Rules.");
+    }
+  });
+}
+
+// ===============================
+// CATALOG
+// ===============================
+function renderProducts(snapshot) {
+  if (!catalogDiv) return;
+
+  catalogDiv.innerHTML = "";
+  lastCatalog = [];
+
+  snapshot.forEach((doc) => {
+    const data = doc.data() || {};
+    const id = doc.id;
+
+    const product = { id, ...data };
+    lastCatalog.push(product);
+
+    const cover = data.images?.[0] || "https://via.placeholder.com/600x400?text=Flower";
+
+    catalogDiv.innerHTML += `
+      <div class="card">
+        <img src="${escapeHtml(cover)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/600x400?text=Flower';">
+        <div class="card-body">
+          <div class="card-title">${escapeHtml(data.name || "Без названия")}</div>
+          <div class="price">${money(data.price || 0)}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  // обновляем список только если админка открыта
+  if (isAdmin && adminOpen) renderAdminList();
+}
+
+db.collection("flowers").onSnapshot(
+  (snapshot) => {
+    if (!catalogDiv) return;
+
+    if (snapshot.empty) {
+      catalogDiv.innerHTML = "<div style='padding:20px;'>Нет товаров</div>";
+      lastCatalog = [];
+      if (isAdmin && adminOpen) renderAdminList();
+      return;
+    }
+
+    renderProducts(snapshot);
+  },
+  (err) => {
+    console.error("Firestore error:", err);
+    alert("Ошибка Firestore. Проверь Rules и настройки проекта.");
+  }
+);
 
 // ===============================
 // INIT
