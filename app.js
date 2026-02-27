@@ -40,7 +40,7 @@ db.collection("flowers").onSnapshot(snapshot => {
       ? data.images[0]
       : "https://via.placeholder.com/600x400?text=Flower";
 
-   catalogDiv.innerHTML += `
+catalogDiv.innerHTML += `
   <div class="card">
     <img 
       src="${img}"
@@ -53,6 +53,5 @@ db.collection("flowers").onSnapshot(snapshot => {
     </div>
   </div>
 `;
-    `;
   });
 });
