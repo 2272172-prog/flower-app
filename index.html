@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MEMENTO FLOS</title>
 
-  <!-- Google Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
 
-  <!-- Firebase -->
+  <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-  <!-- Telegram -->
+  <!-- Telegram WebApp -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <link rel="stylesheet" href="styles.css" />
@@ -21,15 +21,57 @@
 
 <div class="app">
 
-<header class="main-header">
-  <h1 class="brand-title">MEMENTO FLOS</h1>
-</header>
+  <!-- HEADER -->
+  <header class="main-header">
+    <h1 class="brand-title">MEMENTO FLOS</h1>
 
-<div id="toast" class="toast">
-  Отправляем заказ…
-</div>
+    <!-- будет видна только админу (скрипт включит display) -->
+    <button id="adminBtn" class="admin-btn" style="display:none;">Админ</button>
+  </header>
 
-<div id="catalog" class="grid"></div>
+  <!-- TOAST -->
+  <div id="toast" class="toast">Отправляем заказ…</div>
+
+  <!-- CATALOG -->
+  <div id="catalog" class="grid"></div>
+
+  <!-- ADMIN MODAL -->
+  <div id="adminModalBg" class="modal-bg" style="display:none;">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <div class="modal-title">🛠 Админка</div>
+        <button id="adminClose" class="modal-close" type="button">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <input id="adName" class="input" placeholder="Название" />
+        <div class="row2">
+          <input id="adPrice" class="input" placeholder="Цена (число)" />
+          <input id="adCategory" class="input" placeholder="Категория" />
+        </div>
+        <textarea id="adDesc" class="textarea" placeholder="Описание"></textarea>
+
+        <div class="images-box">
+          <div class="images-head">
+            <div style="font-weight:800;">Фото (URL)</div>
+            <button id="addImgRow" class="btn-secondary" type="button">+ Добавить фото</button>
+          </div>
+          <div id="imgRows"></div>
+          <div class="hint">Добавь минимум 1 ссылку. Лучше прямые .jpg/.png.</div>
+        </div>
+
+        <div class="row2" style="margin-top:12px;">
+          <button id="adClear" class="btn-secondary" type="button">Очистить</button>
+          <button id="adSave" class="btn-primary" type="button">Сохранить</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <div style="font-weight:900; margin-bottom:10px;">Товары</div>
+        <div id="adminList" class="admin-list"></div>
+      </div>
+    </div>
+  </div>
 
 </div>
 
