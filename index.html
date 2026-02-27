@@ -24,8 +24,6 @@
   <!-- HEADER -->
   <header class="main-header">
     <h1 class="brand-title">MEMENTO FLOS</h1>
-
-    <!-- будет видна только админу (скрипт включит display) -->
     <button id="adminBtn" class="admin-btn" style="display:none;">Админ</button>
   </header>
 
@@ -34,6 +32,28 @@
 
   <!-- CATALOG -->
   <div id="catalog" class="grid"></div>
+
+  <!-- PRODUCT MODAL -->
+  <div id="productModalBg" class="product-modal-bg" style="display:none;">
+    <div class="product-modal" onclick="event.stopPropagation()">
+
+      <div class="pm-header">
+        <button id="pmClose" class="pm-close" type="button">✕</button>
+      </div>
+
+      <div class="pm-slider">
+        <div id="pmTrack" class="pm-track"></div>
+        <div id="pmDots" class="pm-dots"></div>
+      </div>
+
+      <div class="pm-body">
+        <div id="pmTitle" class="pm-title"></div>
+        <div id="pmPrice" class="pm-price"></div>
+        <button id="pmOrder" class="pm-order" type="button">Заказать</button>
+      </div>
+
+    </div>
+  </div>
 
   <!-- ADMIN MODAL -->
   <div id="adminModalBg" class="modal-bg" style="display:none;">
@@ -54,7 +74,7 @@
         <div class="images-box">
           <div class="images-head">
             <div style="font-weight:800;">Фото (URL)</div>
-            <button id="addImgRow" class="btn-secondary" type="button">+ Добавить фото</button>
+            <button id="addImgRow" class="btn-secondary" type="button">+ Фото</button>
           </div>
           <div id="imgRows"></div>
           <div class="hint">Добавь минимум 1 ссылку. Лучше прямые .jpg/.png.</div>
