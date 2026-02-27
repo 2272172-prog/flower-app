@@ -4,6 +4,19 @@ body {
   font-family: 'Manrope', sans-serif;
 }
 
+.main-header {
+  text-align: center;
+  padding: 34px 20px 16px;
+}
+
+.brand-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 40px;
+  letter-spacing: 6px;
+  font-weight: 700;
+  margin: 0;
+  color: #111;
+}
 /* ===== HEADER ===== */
 
 .main-header {
