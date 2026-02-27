@@ -1,248 +1,1153 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Flower Shop</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>Flower Shop Mini App</title>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-<style>
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #f4f4f4;
-}
+  <!-- Telegram WebApp -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-.app {
-  padding-bottom: 80px;
-}
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --line:#e7e9f0;
+      --brand:#2AABEE;
+      --brand2:#38bdf8;
+      --danger:#ef4444;
+      --ok:#22c55e;
+      --shadow: 0 12px 30px rgba(15,23,42,.08);
+      --r:20px;
+    }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .app{ padding-bottom:88px; }
+    .topbar{
+      padding:14px 14px 8px;
+      position:sticky; top:0;
+      background:linear-gradient(180deg, rgba(246,247,251,1) 70%, rgba(246,247,251,0) 100%);
+      z-index:5;
+    }
+    .headerRow{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+    }
+    .title{
+      font-size:20px; font-weight:800; letter-spacing:.2px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .pill{
+      border:1px solid var(--line);
+      background:var(--card);
+      border-radius:999px;
+      padding:8px 10px;
+      font-size:12px;
+      display:flex; gap:8px; align-items:center;
+      box-shadow:0 6px 16px rgba(15,23,42,.05);
+    }
+    .search{
+      margin-top:10px;
+      display:flex; gap:10px;
+    }
+    .search input{
+      width:100%;
+      border:1px solid var(--line);
+      background:var(--card);
+      border-radius:14px;
+      padding:12px 12px;
+      outline:none;
+      font-size:14px;
+      box-shadow:0 6px 16px rgba(15,23,42,.04);
+    }
+    .btn{
+      user-select:none;
+      border:none;
+      border-radius:14px;
+      padding:12px 12px;
+      background:linear-gradient(135deg, var(--brand), var(--brand2));
+      color:#fff;
+      font-weight:700;
+      font-size:14px;
+      box-shadow:0 12px 24px rgba(42,171,238,.22);
+      cursor:pointer;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.secondary{
+      background:var(--card);
+      color:var(--text);
+      border:1px solid var(--line);
+      box-shadow:0 6px 16px rgba(15,23,42,.05);
+    }
+    .btn.danger{
+      background:var(--danger);
+      box-shadow:0 12px 24px rgba(239,68,68,.22);
+    }
+    .btn.ok{
+      background:var(--ok);
+      box-shadow:0 12px 24px rgba(34,197,94,.22);
+    }
 
-.header {
-  padding: 16px;
-  font-size: 20px;
-  font-weight: 600;
-}
+    .screen{ display:none; }
+    .screen.active{ display:block; }
 
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 12px;
-}
+    /* Grid: 2 cards per row */
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+      padding:14px;
+    }
+    .card{
+      background:var(--card);
+      border-radius:var(--r);
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      border:1px solid rgba(231,233,240,.75);
+      position:relative;
+    }
+    .favBtn{
+      position:absolute; top:10px; right:10px;
+      width:34px; height:34px;
+      border-radius:999px;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(255,255,255,.9);
+      border:1px solid rgba(231,233,240,.9);
+      box-shadow:0 8px 18px rgba(15,23,42,.10);
+      cursor:pointer;
+      z-index:2;
+      user-select:none;
+    }
+    .badge{
+      position:absolute; top:10px; left:10px;
+      background:rgba(15,23,42,.78);
+      color:#fff;
+      font-size:11px;
+      padding:6px 8px;
+      border-radius:999px;
+      z-index:2;
+    }
 
-.card {
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  position: relative;
-}
+    /* slider */
+    .slider{
+      position:relative;
+      width:100%;
+      height:170px;
+      overflow:hidden;
+      background:#eef2ff;
+    }
+    .track{
+      display:flex;
+      height:100%;
+      overflow-x:auto;
+      scroll-snap-type:x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width:none;
+    }
+    .track::-webkit-scrollbar{ display:none; }
+    .slide{
+      flex:0 0 100%;
+      height:170px;
+      scroll-snap-align:start;
+      position:relative;
+    }
+    .slide img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .dots{
+      position:absolute;
+      left:0; right:0; bottom:10px;
+      display:flex; justify-content:center; gap:6px;
+      z-index:2;
+      pointer-events:none;
+    }
+    .dot{
+      width:6px; height:6px;
+      border-radius:999px;
+      background:rgba(255,255,255,.55);
+      border:1px solid rgba(15,23,42,.12);
+      box-shadow:0 4px 12px rgba(15,23,42,.18);
+      transition:all .15s ease;
+    }
+    .dot.active{
+      width:18px;
+      background:#fff;
+    }
 
-.card img {
-  width: 100%;
-  height: 160px;
-  object-fit: cover;
-}
+    .cardBody{
+      padding:10px 10px 12px;
+    }
+    .name{
+      font-weight:800;
+      font-size:14px;
+      line-height:1.25;
+      min-height:36px;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+    }
+    .row{
+      margin-top:8px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .price{
+      font-weight:900;
+      font-size:14px;
+      color:var(--brand);
+      white-space:nowrap;
+    }
+    .mini{
+      font-size:12px;
+      color:var(--muted);
+    }
 
-.card-content {
-  padding: 10px;
-}
+    /* bottom nav */
+    .bottomNav{
+      position:fixed;
+      bottom:0; left:0; right:0;
+      height:78px;
+      background:rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-top:1px solid var(--line);
+      display:flex;
+      justify-content:space-around;
+      align-items:center;
+      z-index:10;
+    }
+    .navItem{
+      width:25%;
+      text-align:center;
+      font-size:11px;
+      color:var(--muted);
+      cursor:pointer;
+      user-select:none;
+    }
+    .navItem .icon{ font-size:20px; display:block; margin-bottom:2px; }
+    .navItem.active{ color:var(--brand); font-weight:800; }
+    .navBadge{
+      display:inline-flex;
+      min-width:18px;
+      padding:2px 6px;
+      border-radius:999px;
+      background:var(--brand);
+      color:#fff;
+      font-size:10px;
+      font-weight:800;
+      margin-left:6px;
+      vertical-align:middle;
+    }
 
-.price {
-  font-weight: bold;
-  margin-top: 4px;
-}
+    /* Lists */
+    .page{
+      padding:14px;
+    }
+    .sectionTitle{
+      font-size:16px;
+      font-weight:900;
+      margin:4px 0 12px;
+    }
+    .list{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      overflow:hidden;
+      box-shadow:0 10px 22px rgba(15,23,42,.06);
+    }
+    .listItem{
+      padding:12px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+    }
+    .listItem:last-child{ border-bottom:none; }
+    .qtyBox{
+      display:flex; align-items:center; gap:8px;
+      white-space:nowrap;
+    }
+    .qtyBtn{
+      width:32px; height:32px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:#fff;
+      box-shadow:0 6px 14px rgba(15,23,42,.05);
+      cursor:pointer;
+      font-weight:900;
+    }
+    .qtyNum{
+      min-width:22px;
+      text-align:center;
+      font-weight:900;
+    }
+    .muted{ color:var(--muted); font-size:12px; }
+    .totalBox{
+      margin-top:12px;
+      display:flex; justify-content:space-between; align-items:center;
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      padding:12px;
+      box-shadow:0 10px 22px rgba(15,23,42,.06);
+    }
 
-.favorite {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: white;
-  border-radius: 50%;
-  padding: 6px;
-  cursor: pointer;
-}
+    /* Modal */
+    .modalBg{
+      position:fixed; inset:0;
+      background:rgba(15,23,42,.52);
+      display:none;
+      align-items:flex-end;
+      justify-content:center;
+      z-index:20;
+    }
+    .modalBg.active{ display:flex; }
+    .modal{
+      width:100%;
+      max-width:520px;
+      background:var(--bg);
+      border-top-left-radius:24px;
+      border-top-right-radius:24px;
+      overflow:hidden;
+      box-shadow:0 -18px 60px rgba(15,23,42,.35);
+    }
+    .modalHead{
+      display:flex; justify-content:space-between; align-items:center;
+      padding:12px 14px;
+      background:rgba(255,255,255,.94);
+      border-bottom:1px solid var(--line);
+    }
+    .closeX{
+      width:40px; height:40px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:#fff;
+      cursor:pointer;
+      font-size:16px;
+      font-weight:900;
+    }
+    .modalBody{ padding:14px; }
+    .textarea, .input{
+      width:100%;
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius:14px;
+      padding:12px;
+      font-size:14px;
+      outline:none;
+    }
+    .textarea{ min-height:90px; resize:vertical; }
+    .formRow{ display:flex; gap:10px; margin-top:10px; }
+    .formRow > *{ flex:1; }
+    .hint{ font-size:12px; color:var(--muted); margin-top:6px; line-height:1.35; }
+    .hr{ height:1px; background:var(--line); margin:12px 0; }
 
-.add-btn {
-  margin-top: 6px;
-  padding: 8px;
-  background: #2AABEE;
-  color: white;
-  text-align: center;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 70px;
-  background: white;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  border-top: 1px solid #ddd;
-}
-
-.nav-item {
-  text-align: center;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.nav-item span {
-  display: block;
-  font-size: 11px;
-  margin-top: 2px;
-}
-
-.nav-item.active {
-  color: #2AABEE;
-}
-
-.screen {
-  display: none;
-}
-
-.screen.active {
-  display: block;
-}
-</style>
+    /* small screens */
+    @media (max-width:360px){
+      .slider,.slide{ height:155px; }
+      .grid{ gap:12px; padding:12px; }
+    }
+  </style>
 </head>
 
 <body>
-
 <div class="app">
 
-  <div class="header">🌸 Flower Shop</div>
+  <!-- TOP -->
+  <div class="topbar">
+    <div class="headerRow">
+      <div class="title">🌸 Flower Shop</div>
+      <div class="pill" id="userPill">👤 Гость</div>
+    </div>
+    <div class="search">
+      <input id="searchInput" placeholder="Поиск букетов, цветов..." />
+      <button class="btn secondary" id="adminBtn" style="display:none;">Админ</button>
+    </div>
+  </div>
 
+  <!-- HOME -->
   <div id="homeScreen" class="screen active">
     <div id="catalog" class="grid"></div>
-  </div>
-
-  <div id="cartScreen" class="screen">
-    <div style="padding:16px;">
-      <h3>Корзина</h3>
-      <div id="cartItems"></div>
-      <div id="cartTotal" style="margin-top:10px;font-weight:bold;"></div>
-      <div class="add-btn" onclick="checkout()">Оформить заказ</div>
+    <div id="emptyHome" class="page" style="display:none;">
+      <div class="sectionTitle">Пока нет товаров</div>
+      <div class="muted">Добавь товары в Firestore (collection <b>flowers</b>) или через админку.</div>
     </div>
   </div>
 
+  <!-- FAV -->
   <div id="favScreen" class="screen">
-    <div style="padding:16px;">
-      <h3>Избранное</h3>
-      <div id="favItems"></div>
+    <div class="page">
+      <div class="sectionTitle">❤️ Избранное</div>
+      <div id="favList" class="list"></div>
+      <div id="favEmpty" class="muted" style="margin-top:10px; display:none;">Пока пусто</div>
     </div>
   </div>
 
-  <div class="bottom-nav">
-    <div class="nav-item active" onclick="showScreen('homeScreen', this)">🏠<span>Главная</span></div>
-    <div class="nav-item" onclick="showScreen('favScreen', this)">❤️<span>Избранное</span></div>
-    <div class="nav-item" onclick="showScreen('cartScreen', this)">🛒<span>Корзина</span></div>
-    <div class="nav-item">👤<span>Профиль</span></div>
+  <!-- CART -->
+  <div id="cartScreen" class="screen">
+    <div class="page">
+      <div class="sectionTitle">🛒 Корзина</div>
+      <div id="cartList" class="list"></div>
+      <div id="cartEmpty" class="muted" style="margin-top:10px; display:none;">Корзина пустая</div>
+
+      <div class="totalBox">
+        <div>
+          <div style="font-weight:900;">Итого</div>
+          <div class="muted">Сумма заказа</div>
+        </div>
+        <div id="cartTotal" style="font-weight:1000;font-size:18px;color:var(--brand);">0 ₽</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <input id="customerName" class="input" placeholder="Ваше имя" />
+      <div class="formRow">
+        <input id="customerPhone" class="input" placeholder="Телефон" />
+        <input id="customerAddress" class="input" placeholder="Адрес" />
+      </div>
+      <div class="hint">После оформления: заказ сохранится в Firestore (<b>orders</b>) и отправится в бота через <b>sendData</b>.</div>
+
+      <div style="margin-top:12px; display:flex; gap:10px;">
+        <button class="btn secondary" onclick="clearCart()">Очистить</button>
+        <button class="btn" style="flex:1;" onclick="checkout()">Оформить</button>
+      </div>
+    </div>
   </div>
 
+  <!-- PROFILE -->
+  <div id="profileScreen" class="screen">
+    <div class="page">
+      <div class="sectionTitle">👤 Профиль</div>
+      <div class="list">
+        <div class="listItem">
+          <div>
+            <div style="font-weight:900;">Пользователь</div>
+            <div class="muted" id="profileUser">—</div>
+          </div>
+          <button class="btn secondary" onclick="resetLocal()">Сбросить</button>
+        </div>
+        <div class="listItem">
+          <div>
+            <div style="font-weight:900;">Доставка</div>
+            <div class="muted">Настройки берутся из полей в корзине</div>
+          </div>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:10px;">
+        Если открыто в Telegram — мы видим Telegram user.id и можем включать админку.
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottomNav">
+    <div class="navItem active" onclick="showScreen('homeScreen', this)"><span class="icon">🏠</span>Главная</div>
+    <div class="navItem" onclick="showScreen('favScreen', this)"><span class="icon">❤️</span>Избранное</div>
+    <div class="navItem" onclick="showScreen('cartScreen', this)"><span class="icon">🛒</span>Корзина <span id="cartBadge" class="navBadge" style="display:none;">0</span></div>
+    <div class="navItem" onclick="showScreen('profileScreen', this)"><span class="icon">👤</span>Профиль</div>
+  </div>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modalBg" id="productModalBg" onclick="closeProductModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modalHead">
+      <div style="font-weight:1000;" id="pmTitle">Товар</div>
+      <button class="closeX" onclick="closeProductModal()">✕</button>
+    </div>
+    <div class="slider" style="height:220px;">
+      <div class="track" id="pmTrack"></div>
+      <div class="dots" id="pmDots"></div>
+    </div>
+    <div class="modalBody">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;">
+        <div>
+          <div class="muted" id="pmCategory"></div>
+          <div style="font-weight:1000;font-size:22px;color:var(--brand);" id="pmPrice">0 ₽</div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn secondary" id="pmFavBtn" onclick="toggleFavorite(currentProductId)">❤️</button>
+          <button class="btn" onclick="addToCart(currentProductId)">В корзину</button>
+        </div>
+      </div>
+      <div class="hr"></div>
+      <div class="muted" id="pmDesc">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN MODAL -->
+<div class="modalBg" id="adminModalBg" onclick="closeAdminModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modalHead">
+      <div style="font-weight:1000;">🛠 Админка</div>
+      <button class="closeX" onclick="closeAdminModal()">✕</button>
+    </div>
+    <div class="modalBody">
+      <div class="hint" style="margin-top:0;">
+        Добавление/редактирование товаров (collection <b>flowers</b>).
+        Поле <b>images</b> — массив URL (2–3 ссылки, можно больше).
+      </div>
+
+      <div class="hr"></div>
+
+      <input id="adName" class="input" placeholder="Название" />
+      <div class="formRow">
+        <input id="adPrice" class="input" placeholder="Цена (число)" />
+        <input id="adCategory" class="input" placeholder="Категория (например: Букеты)" />
+      </div>
+      <textarea id="adDesc" class="textarea" placeholder="Описание"></textarea>
+      <textarea id="adImages" class="textarea" placeholder="Ссылки на фото, каждая с новой строки (2–3 строки минимум)"></textarea>
+
+      <div class="formRow">
+        <button class="btn secondary" onclick="clearAdminForm()">Очистить</button>
+        <button class="btn ok" id="adSaveBtn" onclick="saveFlower()">Сохранить</button>
+      </div>
+
+      <div class="hr"></div>
+      <div style="font-weight:1000;margin-bottom:10px;">Список товаров</div>
+      <div id="adminList" class="list"></div>
+    </div>
+  </div>
 </div>
 
 <script>
+/* ==========================
+   1) FIREBASE CONFIG
+   ========================== */
 const firebaseConfig = {
   apiKey: "ТВОЙ_API_KEY",
-  authDomain: "flower-app-5a32c.firebaseapp.com",
-  projectId: "flower-app-5a32c",
-  storageBucket: "flower-app-5a32c.appspot.com",
-  messagingSenderId: "540208840853",
-  appId: "1:540208840853:web:..."
+  authDomain: "ТВОЙ_PROJECT.firebaseapp.com",
+  projectId: "ТВОЙ_PROJECT_ID",
+  storageBucket: "ТВОЙ_PROJECT.appspot.com",
+  messagingSenderId: "....",
+  appId: "...."
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let cart = [];
-let favorites = [];
+/* ==========================
+   2) SETTINGS
+   ========================== */
+// ВПИШИ Telegram user.id админов:
+const ADMIN_IDS = [123456789]; // например [11111111, 22222222]
 
+/* ==========================
+   3) STATE + LOCAL STORAGE
+   ========================== */
+const LS_CART = "fs_cart_v2";
+const LS_FAV  = "fs_fav_v2";
+const LS_FORM = "fs_form_v2";
+
+let catalog = [];               // [{id, name, price, images, desc, category}]
+let favorites = new Set(loadJSON(LS_FAV, []));
+let cart = loadJSON(LS_CART, {}); // { [id]: {id, name, price, qty} }
+
+let isAdmin = false;
+let tgUser = null;
+let currentProductId = null;
+
+// Admin edit state
+let editingFlowerId = null;
+
+function loadJSON(key, fallback){
+  try{
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  }catch{ return fallback; }
+}
+function saveJSON(key, value){
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+/* ==========================
+   4) TELEGRAM INIT
+   ========================== */
+function initTelegram(){
+  if (window.Telegram?.WebApp){
+    Telegram.WebApp.expand();
+    Telegram.WebApp.ready?.();
+    tgUser = Telegram.WebApp.initDataUnsafe?.user || null;
+
+    const pill = document.getElementById("userPill");
+    const profile = document.getElementById("profileUser");
+
+    if (tgUser){
+      const name = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ");
+      pill.textContent = `👤 ${name || "Пользователь"} (id:${tgUser.id})`;
+      profile.textContent = `${name || "—"} (id:${tgUser.id})`;
+      isAdmin = ADMIN_IDS.includes(Number(tgUser.id));
+    } else {
+      pill.textContent = "👤 Гость";
+      profile.textContent = "Гость (вне Telegram)";
+      isAdmin = false;
+    }
+
+    if (isAdmin){
+      document.getElementById("adminBtn").style.display = "inline-flex";
+    }
+  }
+}
+
+/* ==========================
+   5) UI HELPERS
+   ========================== */
 const catalogDiv = document.getElementById("catalog");
+const emptyHome = document.getElementById("emptyHome");
 
-function loadFlowers() {
-  db.collection("flowers").get().then(snapshot => {
-    snapshot.forEach(doc => {
-      const flower = doc.data();
-      catalogDiv.innerHTML += `
-        <div class="card">
-          <div class="favorite" onclick="toggleFavorite('${doc.id}','${flower.name}',${flower.price})">❤️</div>
-          <img src="${flower.image}" onerror="this.src='https://via.placeholder.com/400x300?text=Flower'">
-          <div class="card-content">
-            <div>${flower.name}</div>
-            <div class="price">${flower.price} ₽</div>
-            <div class="add-btn" onclick="addToCart('${flower.name}', ${flower.price})">В корзину</div>
-          </div>
-        </div>
-      `;
+const searchInput = document.getElementById("searchInput");
+searchInput.addEventListener("input", () => renderCatalog());
+
+function money(n){
+  const x = Number(n) || 0;
+  return x.toLocaleString("ru-RU") + " ₽";
+}
+function escapeHtml(str){
+  return String(str ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function haptic(type="light"){
+  if (window.Telegram?.WebApp?.HapticFeedback){
+    try{
+      if (type === "select") Telegram.WebApp.HapticFeedback.selectionChanged();
+      else Telegram.WebApp.HapticFeedback.impactOccurred(type);
+    }catch{}
+  }
+}
+
+/* ==========================
+   6) LOAD CATALOG (Firestore)
+   ========================== */
+function subscribeFlowers(){
+  db.collection("flowers").orderBy("createdAt","desc").onSnapshot((snap) => {
+    catalog = [];
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      catalog.push({
+        id: doc.id,
+        name: String(d.name || "Без названия"),
+        price: Number(d.price || 0),
+        images: Array.isArray(d.images) ? d.images.filter(Boolean) : [],
+        desc: String(d.desc || ""),
+        category: String(d.category || "")
+      });
     });
+    renderCatalog();
+    if (isAdmin) renderAdminList();
+  }, (err) => {
+    console.error(err);
+    alert("Ошибка загрузки товаров. Проверь Firebase/Firestore.");
   });
 }
 
-loadFlowers();
-
-function addToCart(name, price) {
-  cart.push({name, price});
-  alert("Добавлено в корзину");
-}
-
-function toggleFavorite(id, name, price) {
-  favorites.push({name, price});
-  alert("Добавлено в избранное");
-}
-
-function showScreen(id, el) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  el.classList.add('active');
-
-  if(id === "cartScreen") renderCart();
-  if(id === "favScreen") renderFav();
-}
-
-function renderCart() {
-  const cartDiv = document.getElementById("cartItems");
-  const totalDiv = document.getElementById("cartTotal");
-  cartDiv.innerHTML = "";
-  let total = 0;
-
-  cart.forEach(item => {
-    total += item.price;
-    cartDiv.innerHTML += `<div>${item.name} — ${item.price} ₽</div>`;
+function renderCatalog(){
+  const q = (searchInput.value || "").trim().toLowerCase();
+  const list = catalog.filter(p => {
+    if (!q) return true;
+    const hay = (p.name + " " + p.category + " " + p.desc).toLowerCase();
+    return hay.includes(q);
   });
 
-  totalDiv.innerText = "Итого: " + total + " ₽";
+  if (list.length === 0){
+    catalogDiv.innerHTML = "";
+    emptyHome.style.display = "block";
+    return;
+  }
+  emptyHome.style.display = "none";
+
+  catalogDiv.innerHTML = list.map(p => {
+    const isFav = favorites.has(p.id);
+    const imgArr = (p.images && p.images.length) ? p.images : ["https://via.placeholder.com/600x400?text=Flower"];
+    const slides = imgArr.map(url => `
+      <div class="slide"><img src="${escapeHtml(url)}" onerror="this.src='https://via.placeholder.com/600x400?text=Flower'"></div>
+    `).join("");
+
+    const dots = imgArr.slice(0, 6).map((_, i) => `
+      <span class="dot ${i===0 ? "active":""}"></span>
+    `).join("");
+
+    return `
+      <div class="card" onclick="openProductModal('${p.id}')">
+        <div class="favBtn" onclick="event.stopPropagation(); toggleFavorite('${p.id}')">${isFav ? "❤️" : "🤍"}</div>
+        ${p.category ? `<div class="badge">${escapeHtml(p.category)}</div>` : ""}
+
+        <div class="slider">
+          <div class="track" id="track-${p.id}" onscroll="syncDots('${p.id}')">
+            ${slides}
+          </div>
+          <div class="dots" id="dots-${p.id}">${dots}</div>
+        </div>
+
+        <div class="cardBody">
+          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="row">
+            <div class="price">${money(p.price)}</div>
+            <button class="btn" onclick="event.stopPropagation(); addToCart('${p.id}')">+</button>
+          </div>
+          <div class="mini">${p.desc ? escapeHtml(p.desc).slice(0, 44) + (p.desc.length>44 ? "…" : "") : " "}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // after render: make sure dots correct for each card
+  list.forEach(p => syncDots(p.id, true));
 }
 
-function renderFav() {
-  const favDiv = document.getElementById("favItems");
-  favDiv.innerHTML = "";
+/* sync dots based on scroll position */
+function syncDots(id, force=false){
+  const track = document.getElementById(`track-${id}`);
+  const dotsWrap = document.getElementById(`dots-${id}`);
+  if (!track || !dotsWrap) return;
 
-  favorites.forEach(item => {
-    favDiv.innerHTML += `<div>${item.name} — ${item.price} ₽</div>`;
-  });
+  const dots = Array.from(dotsWrap.querySelectorAll(".dot"));
+  if (!dots.length) return;
+
+  const w = track.clientWidth || 1;
+  const idx = Math.round(track.scrollLeft / w);
+  dots.forEach((d,i)=> d.classList.toggle("active", i===idx));
+  if (force) dots.forEach((d,i)=> d.classList.toggle("active", i===0));
 }
 
-function checkout() {
-  let text = "Хочу заказать:\n";
-  cart.forEach(item => {
-    text += item.name + " — " + item.price + "₽\n";
-  });
+/* ==========================
+   7) FAVORITES
+   ========================== */
+function toggleFavorite(id){
+  if (favorites.has(id)) favorites.delete(id);
+  else favorites.add(id);
 
-  window.open("https://t.me/vtaliy_gd?text=" + encodeURIComponent(text));
+  saveJSON(LS_FAV, Array.from(favorites));
+  haptic("select");
+  renderCatalog();
+  renderFav();
 }
 
-if (window.Telegram && Telegram.WebApp) {
-  Telegram.WebApp.expand();
+function renderFav(){
+  const favList = document.getElementById("favList");
+  const favEmpty = document.getElementById("favEmpty");
+
+  const items = Array.from(favorites)
+    .map(id => catalog.find(p => p.id === id))
+    .filter(Boolean);
+
+  if (items.length === 0){
+    favList.innerHTML = "";
+    favEmpty.style.display = "block";
+    return;
+  }
+  favEmpty.style.display = "none";
+
+  favList.innerHTML = items.map(p => `
+    <div class="listItem">
+      <div style="min-width:0;">
+        <div style="font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
+        <div class="muted">${p.category ? escapeHtml(p.category) + " · " : ""}${money(p.price)}</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="btn secondary" onclick="openProductModal('${p.id}')">Открыть</button>
+        <button class="btn" onclick="addToCart('${p.id}')">+</button>
+      </div>
+    </div>
+  `).join("");
 }
+
+/* ==========================
+   8) CART
+   ========================== */
+function addToCart(id){
+  const p = catalog.find(x => x.id === id);
+  if (!p) return;
+
+  if (!cart[id]) cart[id] = { id, name:p.name, price:p.price, qty:0 };
+  cart[id].qty += 1;
+
+  saveJSON(LS_CART, cart);
+  haptic("light");
+  updateCartBadge();
+  renderCart();
+}
+
+function decCart(id){
+  if (!cart[id]) return;
+  cart[id].qty -= 1;
+  if (cart[id].qty <= 0) delete cart[id];
+  saveJSON(LS_CART, cart);
+  updateCartBadge();
+  renderCart();
+}
+
+function incCart(id){
+  if (!cart[id]) return;
+  cart[id].qty += 1;
+  saveJSON(LS_CART, cart);
+  updateCartBadge();
+  renderCart();
+}
+
+function clearCart(){
+  cart = {};
+  saveJSON(LS_CART, cart);
+  updateCartBadge();
+  renderCart();
+  haptic("light");
+}
+
+function cartCount(){
+  return Object.values(cart).reduce((s,x)=>s+(x.qty||0),0);
+}
+
+function cartTotal(){
+  return Object.values(cart).reduce((s,x)=>s+(Number(x.price||0)*Number(x.qty||0)),0);
+}
+
+function updateCartBadge(){
+  const badge = document.getElementById("cartBadge");
+  const c = cartCount();
+  if (c > 0){
+    badge.style.display = "inline-flex";
+    badge.textContent = String(c);
+  } else {
+    badge.style.display = "none";
+  }
+}
+
+function renderCart(){
+  const cartList = document.getElementById("cartList");
+  const cartEmpty = document.getElementById("cartEmpty");
+  const cartTotalDiv = document.getElementById("cartTotal");
+
+  const items = Object.values(cart);
+  if (items.length === 0){
+    cartList.innerHTML = "";
+    cartEmpty.style.display = "block";
+    cartTotalDiv.textContent = money(0);
+    return;
+  }
+  cartEmpty.style.display = "none";
+
+  cartList.innerHTML = items.map(it => `
+    <div class="listItem">
+      <div style="min-width:0;">
+        <div style="font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(it.name)}</div>
+        <div class="muted">${money(it.price)} · ${it.qty} шт</div>
+      </div>
+      <div class="qtyBox">
+        <button class="qtyBtn" onclick="decCart('${it.id}')">−</button>
+        <div class="qtyNum">${it.qty}</div>
+        <button class="qtyBtn" onclick="incCart('${it.id}')">+</button>
+      </div>
+    </div>
+  `).join("");
+
+  cartTotalDiv.textContent = money(cartTotal());
+}
+
+/* ==========================
+   9) CHECKOUT (orders + sendData)
+   ========================== */
+async function checkout(){
+  const items = Object.values(cart);
+  if (items.length === 0){
+    alert("Корзина пустая");
+    return;
+  }
+  const name = (document.getElementById("customerName").value || "").trim();
+  const phone = (document.getElementById("customerPhone").value || "").trim();
+  const address = (document.getElementById("customerAddress").value || "").trim();
+
+  // save form
+  saveJSON(LS_FORM, { name, phone, address });
+
+  const order = {
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    status: "new",
+    total: cartTotal(),
+    items: items.map(x => ({
+      id: x.id, name: x.name, price: Number(x.price||0), qty: Number(x.qty||0)
+    })),
+    customer: {
+      name, phone, address,
+      tgUserId: tgUser?.id || null,
+      tgUsername: tgUser?.username || null
+    }
+  };
+
+  try{
+    const ref = await db.collection("orders").add(order);
+
+    // payload for bot
+    const payload = {
+      type:"order",
+      orderId: ref.id,
+      total: order.total,
+      items: order.items,
+      customer: order.customer
+    };
+
+    if (window.Telegram?.WebApp?.sendData){
+      Telegram.WebApp.sendData(JSON.stringify(payload));
+    } else {
+      alert("Заказ создан: " + ref.id + "\nОткрой Mini App внутри Telegram, чтобы отправлять заказ в бота.");
+    }
+
+    // clear cart after success
+    clearCart();
+    alert("Заказ оформлен ✅");
+
+  }catch(e){
+    console.error(e);
+    alert("Ошибка оформления заказа. Проверь правила Firestore.");
+  }
+}
+
+/* ==========================
+   10) SCREENS
+   ========================== */
+function showScreen(id, el){
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+
+  document.querySelectorAll(".navItem").forEach(n => n.classList.remove("active"));
+  el.classList.add("active");
+
+  if (id === "cartScreen") renderCart();
+  if (id === "favScreen") renderFav();
+}
+
+/* ==========================
+   11) PRODUCT MODAL
+   ========================== */
+function openProductModal(id){
+  const p = catalog.find(x => x.id === id);
+  if (!p) return;
+
+  currentProductId = id;
+
+  document.getElementById("pmTitle").textContent = p.name;
+  document.getElementById("pmCategory").textContent = p.category || "";
+  document.getElementById("pmPrice").textContent = money(p.price);
+  document.getElementById("pmDesc").textContent = p.desc || "—";
+
+  const pmTrack = document.getElementById("pmTrack");
+  const pmDots = document.getElementById("pmDots");
+
+  const imgs = (p.images && p.images.length) ? p.images : ["https://via.placeholder.com/800x500?text=Flower"];
+  pmTrack.innerHTML = imgs.map(url => `
+    <div class="slide" style="height:220px;">
+      <img src="${escapeHtml(url)}" onerror="this.src='https://via.placeholder.com/800x500?text=Flower'">
+    </div>
+  `).join("");
+
+  pmDots.innerHTML = imgs.map((_,i)=> `<span class="dot ${i===0?"active":""}"></span>`).join("");
+
+  pmTrack.onscroll = () => {
+    const w = pmTrack.clientWidth || 1;
+    const idx = Math.round(pmTrack.scrollLeft / w);
+    Array.from(pmDots.querySelectorAll(".dot")).forEach((d,i)=> d.classList.toggle("active", i===idx));
+  };
+
+  document.getElementById("pmFavBtn").textContent = favorites.has(id) ? "❤️" : "🤍";
+  document.getElementById("productModalBg").classList.add("active");
+  haptic("light");
+}
+
+function closeProductModal(ev){
+  if (ev && ev.target && ev.target.id !== "productModalBg") return;
+  document.getElementById("productModalBg").classList.remove("active");
+}
+
+/* override fav button in modal text */
+const _oldToggleFavorite = toggleFavorite;
+toggleFavorite = function(id){
+  _oldToggleFavorite(id);
+  if (currentProductId === id){
+    document.getElementById("pmFavBtn").textContent = favorites.has(id) ? "❤️" : "🤍";
+  }
+};
+
+/* ==========================
+   12) ADMIN PANEL (CRUD flowers)
+   ========================== */
+document.getElementById("adminBtn").addEventListener("click", () => openAdminModal());
+
+function openAdminModal(){
+  if (!isAdmin){
+    alert("Нет доступа");
+    return;
+  }
+  renderAdminList();
+  document.getElementById("adminModalBg").classList.add("active");
+}
+
+function closeAdminModal(ev){
+  if (ev && ev.target && ev.target.id !== "adminModalBg") return;
+  document.getElementById("adminModalBg").classList.remove("active");
+}
+
+function clearAdminForm(){
+  editingFlowerId = null;
+  document.getElementById("adName").value = "";
+  document.getElementById("adPrice").value = "";
+  document.getElementById("adCategory").value = "";
+  document.getElementById("adDesc").value = "";
+  document.getElementById("adImages").value = "";
+  document.getElementById("adSaveBtn").textContent = "Сохранить";
+}
+
+function fillAdminForm(id){
+  const p = catalog.find(x => x.id === id);
+  if (!p) return;
+  editingFlowerId = id;
+  document.getElementById("adName").value = p.name;
+  document.getElementById("adPrice").value = String(p.price);
+  document.getElementById("adCategory").value = p.category;
+  document.getElementById("adDesc").value = p.desc;
+  document.getElementById("adImages").value = (p.images || []).join("\n");
+  document.getElementById("adSaveBtn").textContent = "Обновить";
+}
+
+async function saveFlower(){
+  if (!isAdmin) return;
+
+  const name = (document.getElementById("adName").value || "").trim();
+  const price = Number((document.getElementById("adPrice").value || "").trim());
+  const category = (document.getElementById("adCategory").value || "").trim();
+  const desc = (document.getElementById("adDesc").value || "").trim();
+  const imagesText = (document.getElementById("adImages").value || "").trim();
+
+  const images = imagesText
+    .split("\n")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  if (!name){
+    alert("Название обязательно");
+    return;
+  }
+  if (!Number.isFinite(price) || price <= 0){
+    alert("Цена должна быть числом > 0");
+    return;
+  }
+  if (images.length < 2){
+    alert("Добавь минимум 2 ссылки на фото (каждая с новой строки)");
+    return;
+  }
+
+  const data = {
+    name, price, category, desc, images,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try{
+    if (editingFlowerId){
+      await db.collection("flowers").doc(editingFlowerId).set(data, { merge:true });
+      alert("Обновлено ✅");
+    } else {
+      await db.collection("flowers").add({
+        ...data,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      alert("Добавлено ✅");
+    }
+    clearAdminForm();
+  }catch(e){
+    console.error(e);
+    alert("Ошибка сохранения. Проверь правила Firestore.");
+  }
+}
+
+async function deleteFlower(id){
+  if (!isAdmin) return;
+  if (!confirm("Удалить товар?")) return;
+  try{
+    await db.collection("flowers").doc(id).delete();
+    alert("Удалено ✅");
+    if (editingFlowerId === id) clearAdminForm();
+  }catch(e){
+    console.error(e);
+    alert("Ошибка удаления");
+  }
+}
+
+function renderAdminList(){
+  const wrap = document.getElementById("adminList");
+  const items = catalog.slice(); // already sorted by createdAt desc
+  if (items.length === 0){
+    wrap.innerHTML = `<div class="listItem"><div class="muted">Пока нет товаров</div></div>`;
+    return;
+  }
+  wrap.innerHTML = items.map(p => `
+    <div class="listItem">
+      <div style="min-width:0;">
+        <div style="font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
+        <div class="muted">${p.category ? escapeHtml(p.category) + " · " : ""}${money(p.price)} · фото: ${(p.images||[]).length}</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn secondary" onclick="fillAdminForm('${p.id}')">✏️</button>
+        <button class="btn danger" onclick="deleteFlower('${p.id}')">🗑</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+/* ==========================
+   13) PROFILE / RESET
+   ========================== */
+function resetLocal(){
+  if (!confirm("Сбросить корзину/избранное/форму?")) return;
+  localStorage.removeItem(LS_CART);
+  localStorage.removeItem(LS_FAV);
+  localStorage.removeItem(LS_FORM);
+  favorites = new Set();
+  cart = {};
+  updateCartBadge();
+  renderCatalog();
+  renderFav();
+  renderCart();
+  alert("Сброшено ✅");
+}
+
+/* ==========================
+   14) RESTORE FORM
+   ========================== */
+function restoreForm(){
+  const f = loadJSON(LS_FORM, null);
+  if (!f) return;
+  document.getElementById("customerName").value = f.name || "";
+  document.getElementById("customerPhone").value = f.phone || "";
+  document.getElementById("customerAddress").value = f.address || "";
+}
+
+/* ==========================
+   15) BOOT
+   ========================== */
+initTelegram();
+restoreForm();
+updateCartBadge();
+renderCart();
+renderFav();
+subscribeFlowers();
 </script>
 
 </body>
