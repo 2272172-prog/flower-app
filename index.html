@@ -1,48 +1,99 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MEMENTO FLOS</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MEMENTO FLOS</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-<style>
-body{margin:0;background:#f6f4f1;font-family:Manrope}
-.header{text-align:center;padding:24px 0 10px}
-.brand{font-family:"Cormorant Garamond";font-size:36px;letter-spacing:6px;margin:0}
-.adminBtn{margin-top:10px;padding:10px 16px;border-radius:14px;border:1px solid #ddd;background:#fff;cursor:pointer;display:none;font-weight:700}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}
-.card{background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.05)}
-.slider{position:relative;height:190px;overflow:hidden}
-.track{display:flex;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-.track::-webkit-scrollbar{display:none}
-.slide{flex:0 0 100%;scroll-snap-align:start}
-.slide img{width:100%;height:190px;object-fit:cover}
-.dots{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:6px}
-.dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.6)}
-.dot.active{width:18px;background:#fff}
-.cb{padding:12px}
-.ct{font-weight:700;font-size:14px;min-height:36px}
-.price{font-weight:800;margin-top:6px}
+  <!-- Telegram WebApp -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:14px;display:none;font-weight:700}
-</style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
 
-<div class="header">
-<h1 class="brand">MEMENTO FLOS</h1>
-<button id="adminBtn" class="adminBtn">Админ</button>
-</div>
+<div class="app">
 
-<div id="toast" class="toast">Готово</div>
-<div id="catalog" class="grid"></div>
+  <!-- HEADER -->
+  <header class="main-header">
+    <h1 class="brand-title">MEMENTO FLOS</h1>
+    <button id="adminBtn" class="admin-btn" style="display:none;">Админ</button>
+  </header>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast">Отправляем заказ…</div>
+
+  <!-- CATALOG -->
+  <div id="catalog" class="grid"></div>
+
+  <!-- PRODUCT MODAL -->
+  <div id="productModalBg" class="product-modal-bg" style="display:none;">
+    <div class="product-modal" onclick="event.stopPropagation()">
+
+      <div class="pm-header">
+        <button id="pmClose" class="pm-close" type="button">✕</button>
+      </div>
+
+      <div class="pm-slider">
+        <div id="pmTrack" class="pm-track"></div>
+        <div id="pmDots" class="pm-dots"></div>
+      </div>
+
+      <div class="pm-body">
+        <div id="pmTitle" class="pm-title"></div>
+        <div id="pmPrice" class="pm-price"></div>
+        <button id="pmOrder" class="pm-order" type="button">Заказать</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ADMIN MODAL -->
+  <div id="adminModalBg" class="modal-bg" style="display:none;">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <div class="modal-title">🛠 Админка</div>
+        <button id="adminClose" class="modal-close" type="button">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <input id="adName" class="input" placeholder="Название" />
+        <div class="row2">
+          <input id="adPrice" class="input" placeholder="Цена (число)" />
+          <input id="adCategory" class="input" placeholder="Категория" />
+        </div>
+        <textarea id="adDesc" class="textarea" placeholder="Описание"></textarea>
+
+        <div class="images-box">
+          <div class="images-head">
+            <div style="font-weight:800;">Фото (URL)</div>
+            <button id="addImgRow" class="btn-secondary" type="button">+ Фото</button>
+          </div>
+          <div id="imgRows"></div>
+          <div class="hint">Добавь минимум 1 ссылку. Лучше прямые .jpg/.png.</div>
+        </div>
+
+        <div class="row2" style="margin-top:12px;">
+          <button id="adClear" class="btn-secondary" type="button">Очистить</button>
+          <button id="adSave" class="btn-primary" type="button">Сохранить</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <div style="font-weight:900; margin-bottom:10px;">Товары</div>
+        <div id="adminList" class="admin-list"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 <script src="app.js"></script>
 </body>
