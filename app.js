@@ -1,276 +1,120 @@
-// ===============================
-// MEMENTO FLOS — FREE VERSION
-// Firestore + manual image URLs
-// Admin: add multiple links, CRUD
-// ===============================
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>MEMENTO FLOS</title>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAL1CfJ2NaTiu1uc4ybH8lUdnUeBNNpXLw",
-  authDomain: "flower-app-5a32c.firebaseapp.com",
-  projectId: "flower-app-5a32c",
-};
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-// --- Helpers ---
-const money = (n) => (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
-const escapeHtml = (s) =>
-  String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  <!-- Telegram WebApp -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-let toastTimer = null;
-function showToast(text = "Готово ✅") {
-  const t = document.getElementById("toast");
-  if (!t) return;
-  t.textContent = text;
-  t.style.display = "block";
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.style.display = "none"), 1800);
-}
+  <style>
+    :root{ --bg:#f8f6f3; --card:#fff; --text:#111; --muted:rgba(0,0,0,.6); --line:rgba(0,0,0,.08); --r:22px; }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{margin:0;background:var(--bg);font-family:Manrope,system-ui;color:var(--text)}
+    body.modal-open{position:fixed;width:100%}
 
-// --- Telegram / Admin ---
-const tg = window.Telegram?.WebApp || null;
-let tgUser = null;
-if (tg) tgUser = tg.initDataUnsafe?.user || null;
+    .header{position:sticky;top:0;background:linear-gradient(180deg,rgba(248,246,243,1) 70%, rgba(248,246,243,0));padding:24px 16px 12px;text-align:center;z-index:5}
+    .brand{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:36px;letter-spacing:6px;margin:0}
+    .adminBtn{margin-top:10px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;font-weight:800;cursor:pointer;display:none}
 
-const ADMIN_IDS = [41830773];
-const isAdmin = Boolean(tgUser && ADMIN_IDS.includes(Number(tgUser.id)));
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}
+    .card{background:var(--card);border-radius:var(--r);overflow:hidden;border:1px solid var(--line);cursor:pointer}
+    .card img{width:100%;height:190px;object-fit:cover;display:block}
+    .cb{padding:12px}
+    .ct{font-weight:700;font-size:14px;min-height:38px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .price{margin-top:6px;font-weight:800;color:#111}
 
-// --- DOM ---
-const catalogDiv = document.getElementById("catalog");
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 12px;border-radius:14px;font-weight:800;display:none;z-index:9999}
 
-const adminBtn = document.getElementById("adminBtn");
-const adminModalBg = document.getElementById("adminModalBg");
-const adminClose = document.getElementById("adminClose");
+    /* MODAL base */
+    .bg{position:fixed;inset:0;background:rgba(17,24,39,.55);display:none;align-items:center;justify-content:center;padding:12px;z-index:9998}
+    .modal{width:100%;max-width:560px;background:var(--bg);border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.2);max-height:88dvh;display:flex;flex-direction:column}
+    .mh{background:#fff;border-bottom:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;justify-content:space-between}
+    .mt{font-weight:900}
+    .x{width:40px;height:40px;border-radius:14px;border:1px solid var(--line);background:#fff;font-weight:900;cursor:pointer}
+    .mb{padding:14px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:120px}
 
-const adName = document.getElementById("adName");
-const adPrice = document.getElementById("adPrice");
-const adCategory = document.getElementById("adCategory");
-const adDesc = document.getElementById("adDesc");
+    .input,.ta{width:100%;border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px;font-size:14px;outline:none}
+    .ta{min-height:120px;line-height:1.35;resize:vertical}
+    .row2{display:flex;gap:10px;margin-top:10px}
+    .row2 > *{flex:1}
+    .btn{border:none;border-radius:14px;padding:12px;font-weight:900;cursor:pointer;background:#111;color:#fff}
+    .btn2{border:1px solid var(--line);border-radius:14px;padding:12px;font-weight:900;cursor:pointer;background:#fff;color:#111}
+    .hr{height:1px;background:var(--line);margin:14px 0}
+    .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.35}
 
-const imgRows = document.getElementById("imgRows");
-const addImgRowBtn = document.getElementById("addImgRow");
-const clearImgsBtn = document.getElementById("clearImgs");
+    .imgRow{display:flex;gap:10px;align-items:center;margin-top:10px}
+    .imgRow input{flex:1}
+    .mini{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:900}
+    .adminList{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .adminItem{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px;border-bottom:1px solid rgba(0,0,0,.06)}
+    .adminItem:last-child{border-bottom:none}
+    .small{font-size:12px;color:var(--muted)}
+  </style>
+</head>
 
-const adSave = document.getElementById("adSave");
-const adClear = document.getElementById("adClear");
+<body>
+  <div class="header">
+    <h1 class="brand">MEMENTO FLOS</h1>
+    <button id="adminBtn" class="adminBtn" type="button">Админ</button>
+  </div>
 
-const adminList = document.getElementById("adminList");
+  <div id="toast" class="toast">Готово ✅</div>
 
-// --- State ---
-let lastCatalog = [];
-let editingId = null;
-let adminOpen = false;
+  <div id="catalog" class="grid"></div>
 
-// --- Admin UI open/close ---
-if (adminBtn) adminBtn.style.display = isAdmin ? "inline-block" : "none";
-
-function openAdmin() {
-  if (!isAdmin) return;
-  adminOpen = true;
-  adminModalBg.style.display = "flex";
-  document.body.classList.add("modal-open");
-  renderAdminList();
-}
-
-function closeAdmin() {
-  adminOpen = false;
-  adminModalBg.style.display = "none";
-  document.body.classList.remove("modal-open");
-}
-
-if (adminBtn) adminBtn.addEventListener("click", openAdmin);
-if (adminClose) adminClose.addEventListener("click", closeAdmin);
-if (adminModalBg) {
-  adminModalBg.addEventListener("click", (e) => {
-    if (e.target === adminModalBg) closeAdmin();
-  });
-}
-
-// --- Images rows ---
-function createImgRow(url = "") {
-  const row = document.createElement("div");
-  row.className = "imgRow";
-
-  const input = document.createElement("input");
-  input.className = "input";
-  input.placeholder = "https://...jpg";
-  input.value = url;
-
-  const del = document.createElement("button");
-  del.className = "mini";
-  del.type = "button";
-  del.textContent = "🗑";
-  del.onclick = () => row.remove();
-
-  row.appendChild(input);
-  row.appendChild(del);
-  return row;
-}
-
-function getImages() {
-  return Array.from(imgRows.querySelectorAll("input"))
-    .map((i) => i.value.trim())
-    .filter(Boolean);
-}
-
-function setImages(urls = []) {
-  imgRows.innerHTML = "";
-  (urls.length ? urls : [""]).forEach((u) => imgRows.appendChild(createImgRow(u)));
-}
-
-if (addImgRowBtn) addImgRowBtn.addEventListener("click", () => imgRows.appendChild(createImgRow("")));
-if (clearImgsBtn) clearImgsBtn.addEventListener("click", () => setImages([]));
-
-// --- Form reset ---
-function clearForm() {
-  editingId = null;
-  adName.value = "";
-  adPrice.value = "";
-  adCategory.value = "";
-  adDesc.value = "";
-  setImages([]);
-}
-
-if (adClear) adClear.addEventListener("click", () => {
-  clearForm();
-  showToast("Форма очищена");
-});
-
-// --- Save (create/update) ---
-if (adSave) {
-  adSave.addEventListener("click", async () => {
-    const data = {
-      name: adName.value.trim(),
-      price: Number(adPrice.value || 0),
-      category: adCategory.value.trim(),
-      desc: adDesc.value.trim(),
-      images: getImages(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    };
-
-    if (!data.name || !Number.isFinite(data.price) || data.price <= 0) {
-      alert("Название и цена обязательны (цена > 0)");
-      return;
-    }
-
-    try {
-      if (editingId) {
-        await db.collection("flowers").doc(editingId).set(data, { merge: true });
-        showToast("Обновлено ✅");
-      } else {
-        await db.collection("flowers").add({
-          ...data,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-        showToast("Добавлено ✅");
-      }
-      clearForm();
-    } catch (e) {
-      console.error(e);
-      alert("Ошибка сохранения. Проверь Firestore Rules.");
-    }
-  });
-}
-
-// --- Admin list ---
-function renderAdminList() {
-  if (!adminList) return;
-
-  if (!lastCatalog.length) {
-    adminList.innerHTML = `<div class="adminItem"><div class="small">Пока нет товаров</div></div>`;
-    return;
-  }
-
-  adminList.innerHTML = lastCatalog
-    .map(
-      (p) => `
-      <div class="adminItem">
-        <div style="min-width:0;">
-          <div style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name || "Без названия")}</div>
-          <div class="small">${money(p.price || 0)} · фото: ${p.images?.length || 0}</div>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button class="mini" type="button" onclick="window.__editFlower('${p.id}')">✏️</button>
-          <button class="mini" type="button" onclick="window.__delFlower('${p.id}')">🗑</button>
-        </div>
+  <!-- ADMIN MODAL -->
+  <div id="adminModalBg" class="bg">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="mh">
+        <div class="mt">🛠 Админка</div>
+        <button id="adminClose" class="x" type="button">✕</button>
       </div>
-    `
-    )
-    .join("");
-}
 
-window.__editFlower = function (id) {
-  const p = lastCatalog.find((x) => x.id === id);
-  if (!p) return;
+      <div class="mb">
+        <div class="small">Фото добавляем ссылками (каждая ссылка = отдельное фото). Работает бесплатно.</div>
 
-  editingId = id;
-  adName.value = p.name || "";
-  adPrice.value = String(p.price || "");
-  adCategory.value = p.category || "";
-  adDesc.value = p.desc || "";
-  setImages(Array.isArray(p.images) ? p.images : []);
-  showToast("Режим редактирования");
-};
+        <div class="hr"></div>
 
-window.__delFlower = async function (id) {
-  if (!confirm("Удалить товар?")) return;
-  try {
-    await db.collection("flowers").doc(id).delete();
-    showToast("Удалено ✅");
-    if (editingId === id) clearForm();
-  } catch (e) {
-    console.error(e);
-    alert("Ошибка удаления. Проверь Rules.");
-  }
-};
-
-// --- Catalog render (показываем 1-е фото как обложку) ---
-function renderCatalog(snapshot) {
-  lastCatalog = [];
-  catalogDiv.innerHTML = "";
-
-  snapshot.forEach((doc) => {
-    const d = doc.data() || {};
-    const p = { id: doc.id, ...d };
-    lastCatalog.push(p);
-
-    const cover = (Array.isArray(p.images) && p.images[0]) ? p.images[0] : "https://via.placeholder.com/600x400?text=Flower";
-
-    catalogDiv.innerHTML += `
-      <div class="card">
-        <img src="${escapeHtml(cover)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/600x400?text=Flower';">
-        <div class="cb">
-          <div class="ct">${escapeHtml(p.name || "Без названия")}</div>
-          <div class="price">${money(p.price || 0)}</div>
+        <input id="adName" class="input" placeholder="Название" />
+        <div class="row2">
+          <input id="adPrice" class="input" placeholder="Цена (число)" inputmode="numeric" />
+          <input id="adCategory" class="input" placeholder="Категория (опционально)" />
         </div>
+        <textarea id="adDesc" class="ta" placeholder="Описание"></textarea>
+
+        <div class="hr"></div>
+
+        <div style="font-weight:900;">Фото (ссылки)</div>
+        <div id="imgRows"></div>
+        <div class="row2">
+          <button id="addImgRow" class="btn2" type="button">+ Добавить ссылку</button>
+          <button id="clearImgs" class="btn2" type="button">Очистить фото</button>
+        </div>
+        <div class="hint">Где брать ссылки: postimages.org / imgbb.com — загрузил → скопировал прямую ссылку на картинку.</div>
+
+        <div class="hr"></div>
+
+        <div class="row2">
+          <button id="adClear" class="btn2" type="button">Очистить форму</button>
+          <button id="adSave" class="btn" type="button">Сохранить</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <div style="font-weight:900;margin-bottom:10px;">Товары</div>
+        <div id="adminList" class="adminList"></div>
       </div>
-    `;
-  });
+    </div>
+  </div>
 
-  if (isAdmin && adminOpen) renderAdminList();
-}
-
-db.collection("flowers").orderBy("createdAt", "desc").onSnapshot(
-  (snap) => {
-    if (snap.empty) {
-      catalogDiv.innerHTML = `<div style="padding:18px;color:rgba(0,0,0,.6)">Товаров нет</div>`;
-      lastCatalog = [];
-      if (isAdmin && adminOpen) renderAdminList();
-      return;
-    }
-    renderCatalog(snap);
-  },
-  (err) => {
-    console.error(err);
-    alert("Ошибка Firestore: " + (err?.message || err));
-  }
-);
-
-// init form images
-setImages([]);
+  <script src="app.js"></script>
+</body>
+</html>
