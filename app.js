@@ -1,5 +1,5 @@
 // =====================
-// app.js (ORDER 1-CLICK + ADMIN CRUD)
+// app.js (CATALOG + PRODUCT MODAL GALLERY + ORDER + ADMIN CRUD)
 // =====================
 
 // ====== HELPERS ======
@@ -50,7 +50,20 @@ const ADMIN_IDS = [41830773]; // твой Telegram user id
 let isAdmin = false;
 let editingFlowerId = null;
 
-// ====== ADMIN UI refs ======
+// ====== UI refs ======
+const catalogDiv = document.getElementById("catalog");
+
+// Product modal
+const productModalBg = document.getElementById("productModalBg");
+const pmClose = document.getElementById("pmClose");
+const pmTrack = document.getElementById("pmTrack");
+const pmDots = document.getElementById("pmDots");
+const pmTitle = document.getElementById("pmTitle");
+const pmPrice = document.getElementById("pmPrice");
+const pmOrder = document.getElementById("pmOrder");
+let currentProduct = null;
+
+// Admin modal
 const adminBtn = document.getElementById("adminBtn");
 const adminModalBg = document.getElementById("adminModalBg");
 const adminClose = document.getElementById("adminClose");
@@ -65,16 +78,18 @@ const adClear = document.getElementById("adClear");
 const adSave = document.getElementById("adSave");
 const adminList = document.getElementById("adminList");
 
-// ====== SHOW ADMIN BTN ONLY FOR YOU ======
+// State
+let lastCatalog = []; // [{id, ...data}]
+
+// ====== ADMIN ACCESS ======
 function initAdminAccess() {
   isAdmin = Boolean(tgUser && ADMIN_IDS.includes(Number(tgUser.id)));
-
-  if (adminBtn) {
-    adminBtn.style.display = isAdmin ? "inline-flex" : "none";
-  }
+  if (adminBtn) adminBtn.style.display = isAdmin ? "inline-flex" : "none";
 }
 
-// ====== ORDER (ONE CLICK) ======
+// =====================
+// ORDER (ONE CLICK)
+// =====================
 async function orderOneClick(productId, data) {
   const product = {
     id: productId,
@@ -96,17 +111,13 @@ async function orderOneClick(productId, data) {
     createdAt: Date.now(),
   };
 
-  // (опционально) записать в Firestore
+  // write to Firestore (optional but useful)
   try {
-    await db.collection("orders").add({
-      ...payload,
-      status: "new",
-    });
+    await db.collection("orders").add({ ...payload, status: "new" });
   } catch (e) {
     console.error("Firestore orders add error:", e);
   }
 
-  // отправка в бота
   if (!tg?.sendData) {
     showToast("Открой мини-апп внутри Telegram");
     alert("Открой сайт через кнопку в боте, тогда заказ уйдёт в Telegram.");
@@ -117,9 +128,7 @@ async function orderOneClick(productId, data) {
     showToast("Заказ отправлен ✅");
 
     if (tg.HapticFeedback) {
-      try {
-        tg.HapticFeedback.impactOccurred("light");
-      } catch {}
+      try { tg.HapticFeedback.impactOccurred("light"); } catch {}
     }
 
     tg.sendData(JSON.stringify(payload));
@@ -130,10 +139,60 @@ async function orderOneClick(productId, data) {
   }
 }
 
-// ====== CATALOG RENDER ======
-const catalogDiv = document.getElementById("catalog");
-let lastCatalog = []; // [{id, ...data}]
+// =====================
+// PRODUCT MODAL (GALLERY)
+// =====================
+function openProductModal(product) {
+  currentProduct = product;
 
+  const images = Array.isArray(product.images) && product.images.length
+    ? product.images
+    : ["https://via.placeholder.com/800x600?text=Flower"];
+
+  pmTrack.innerHTML = images.map(url => `
+    <div class="pm-slide">
+      <img src="${escapeHtml(url)}"
+           onerror="this.onerror=null;this.src='https://via.placeholder.com/800x600?text=Flower';">
+    </div>
+  `).join("");
+
+  pmDots.innerHTML = images.map((_, i) =>
+    `<div class="pm-dot ${i === 0 ? "active" : ""}"></div>`
+  ).join("");
+
+  pmTrack.scrollLeft = 0;
+  pmTrack.onscroll = () => {
+    const w = pmTrack.clientWidth || 1;
+    const idx = Math.round(pmTrack.scrollLeft / w);
+    Array.from(pmDots.children).forEach((d, i) => d.classList.toggle("active", i === idx));
+  };
+
+  pmTitle.textContent = product.name || "Без названия";
+  pmPrice.textContent = money(product.price || 0);
+
+  productModalBg.style.display = "flex";
+}
+
+function closeProductModal() {
+  productModalBg.style.display = "none";
+}
+
+if (pmClose) pmClose.addEventListener("click", closeProductModal);
+if (productModalBg) {
+  productModalBg.addEventListener("click", (e) => {
+    if (e.target === productModalBg) closeProductModal();
+  });
+}
+if (pmOrder) {
+  pmOrder.addEventListener("click", () => {
+    if (!currentProduct) return;
+    orderOneClick(currentProduct.id, currentProduct);
+  });
+}
+
+// =====================
+// CATALOG RENDER
+// =====================
 function renderProducts(snapshot) {
   catalogDiv.innerHTML = "";
   lastCatalog = [];
@@ -142,42 +201,52 @@ function renderProducts(snapshot) {
     const data = doc.data() || {};
     const id = doc.id;
 
-    lastCatalog.push({ id, ...data });
+    const product = { id, ...data };
+    lastCatalog.push(product);
 
     const images = Array.isArray(data.images) ? data.images.filter(Boolean) : [];
-    const img = images.length ? images[0] : "https://via.placeholder.com/600x400?text=Flower";
+    const cover = images.length ? images[0] : "https://via.placeholder.com/600x400?text=Flower";
 
-    const name = escapeHtml(data.name || "Без названия");
-    const price = money(data.price);
+    const title = escapeHtml(data.name || "Без названия");
+    const price = money(data.price || 0);
 
     catalogDiv.innerHTML += `
-      <div class="card">
-        <img 
-          src="${escapeHtml(img)}"
+      <div class="card" data-open="${escapeHtml(id)}">
+        <img
+          src="${escapeHtml(cover)}"
           loading="lazy"
           referrerpolicy="no-referrer"
           onerror="this.onerror=null;this.src='https://via.placeholder.com/600x400?text=Flower';"
         >
         <div class="card-body">
-          <div>${name}</div>
+          <div class="card-title">${title}</div>
           <div class="price">${price}</div>
-          <button class="buy" data-id="${escapeHtml(id)}">Заказать</button>
+          <button class="buy" data-order="${escapeHtml(id)}" type="button">Заказать</button>
         </div>
       </div>
     `;
   });
 
-  // Order buttons
-  document.querySelectorAll("button.buy").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-id");
-      const doc = snapshot.docs.find((d) => d.id === id);
-      if (!doc) return;
-      orderOneClick(id, doc.data() || {});
+  // Click card => open modal (not when clicking button)
+  document.querySelectorAll("[data-open]").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("[data-order]")) return;
+      const id = card.getAttribute("data-open");
+      const p = lastCatalog.find(x => x.id === id);
+      if (p) openProductModal(p);
     });
   });
 
-  // Admin list refresh (if open)
+  // Order button => open modal and order inside (or direct order)
+  document.querySelectorAll("[data-order]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-order");
+      const p = lastCatalog.find(x => x.id === id);
+      if (p) openProductModal(p); // заказ из модалки
+    });
+  });
+
   if (isAdmin) renderAdminList();
 }
 
@@ -186,7 +255,7 @@ db.collection("flowers").onSnapshot(
   (snapshot) => {
     if (snapshot.empty) {
       catalogDiv.innerHTML =
-        "<div style='padding:16px;color:#64748b'>Товаров нет. Добавь документы в коллекцию <b>flowers</b>.</div>";
+        "<div style='padding:16px;color:rgba(17,24,39,.65)'>Товаров нет. Добавь документы в коллекцию <b>flowers</b>.</div>";
       lastCatalog = [];
       if (isAdmin) renderAdminList();
       return;
@@ -200,19 +269,16 @@ db.collection("flowers").onSnapshot(
 );
 
 // =====================
-// ADMIN PANEL LOGIC
+// ADMIN PANEL
 // =====================
 
-// --- modal open/close ---
+// modal open/close
 function openAdminModal() {
   if (!isAdmin) return;
-  if (!adminModalBg) return;
   adminModalBg.style.display = "flex";
   renderAdminList();
 }
-
 function closeAdminModal() {
-  if (!adminModalBg) return;
   adminModalBg.style.display = "none";
 }
 
@@ -220,12 +286,11 @@ if (adminBtn) adminBtn.addEventListener("click", openAdminModal);
 if (adminClose) adminClose.addEventListener("click", closeAdminModal);
 if (adminModalBg) {
   adminModalBg.addEventListener("click", (e) => {
-    // клик по фону закрывает
     if (e.target === adminModalBg) closeAdminModal();
   });
 }
 
-// --- images rows UI ---
+// images rows
 function createImgRow(value = "") {
   const row = document.createElement("div");
   row.className = "img-row";
@@ -239,9 +304,7 @@ function createImgRow(value = "") {
   preview.className = "img-preview";
   preview.alt = "preview";
   preview.src = value || "https://via.placeholder.com/80x80?text=+";
-  preview.onerror = () => {
-    preview.src = "https://via.placeholder.com/80x80?text=+";
-  };
+  preview.onerror = () => { preview.src = "https://via.placeholder.com/80x80?text=+"; };
 
   input.addEventListener("input", () => {
     const v = input.value.trim();
@@ -262,20 +325,11 @@ function createImgRow(value = "") {
 }
 
 function clearImgRows() {
-  if (!imgRows) return;
   imgRows.innerHTML = "";
-}
-
-function getImagesFromRows() {
-  if (!imgRows) return [];
-  const inputs = Array.from(imgRows.querySelectorAll("input"));
-  return inputs.map((i) => i.value.trim()).filter(Boolean);
 }
 
 function setImagesRows(images = []) {
   clearImgRows();
-  if (!imgRows) return;
-
   const arr = Array.isArray(images) ? images : [];
   if (arr.length === 0) {
     imgRows.appendChild(createImgRow(""));
@@ -284,48 +338,52 @@ function setImagesRows(images = []) {
   arr.forEach((url) => imgRows.appendChild(createImgRow(url)));
 }
 
+function getImagesFromRows() {
+  const inputs = Array.from(imgRows.querySelectorAll("input"));
+  return inputs.map((i) => i.value.trim()).filter(Boolean);
+}
+
 if (addImgRowBtn) {
   addImgRowBtn.addEventListener("click", () => {
-    if (!imgRows) return;
-    imgRows.appendChild(createImgRow(""));
+    const row = createImgRow("");
+    imgRows.appendChild(row);
+    const input = row.querySelector("input");
+    if (input) input.focus();
   });
 }
 
-// --- form reset / fill ---
 function clearAdminForm() {
   editingFlowerId = null;
-  if (adName) adName.value = "";
-  if (adPrice) adPrice.value = "";
-  if (adCategory) adCategory.value = "";
-  if (adDesc) adDesc.value = "";
+  adName.value = "";
+  adPrice.value = "";
+  adCategory.value = "";
+  adDesc.value = "";
   setImagesRows([]);
-  if (adSave) adSave.textContent = "Сохранить";
+  adSave.textContent = "Сохранить";
 }
 
 function fillAdminFormById(id) {
   const p = lastCatalog.find((x) => x.id === id);
   if (!p) return;
+
   editingFlowerId = id;
-
-  if (adName) adName.value = p.name || "";
-  if (adPrice) adPrice.value = String(p.price ?? "");
-  if (adCategory) adCategory.value = p.category || "";
-  if (adDesc) adDesc.value = p.desc || p.description || ""; // на всякий случай
+  adName.value = p.name || "";
+  adPrice.value = String(p.price ?? "");
+  adCategory.value = p.category || "";
+  adDesc.value = p.desc || p.description || "";
   setImagesRows(Array.isArray(p.images) ? p.images : []);
-
-  if (adSave) adSave.textContent = "Обновить";
+  adSave.textContent = "Обновить";
 }
 
 if (adClear) adClear.addEventListener("click", clearAdminForm);
 
-// --- save / update ---
 async function saveFlower() {
   if (!isAdmin) return;
 
-  const name = (adName?.value || "").trim();
-  const price = Number((adPrice?.value || "").trim());
-  const category = (adCategory?.value || "").trim();
-  const desc = (adDesc?.value || "").trim();
+  const name = (adName.value || "").trim();
+  const price = Number((adPrice.value || "").trim());
+  const category = (adCategory.value || "").trim();
+  const desc = (adDesc.value || "").trim();
   const images = getImagesFromRows();
 
   if (!name) return alert("Название обязательно");
@@ -361,7 +419,6 @@ async function saveFlower() {
 
 if (adSave) adSave.addEventListener("click", saveFlower);
 
-// --- delete ---
 async function deleteFlower(id) {
   if (!isAdmin) return;
   if (!confirm("Удалить товар?")) return;
@@ -376,7 +433,6 @@ async function deleteFlower(id) {
   }
 }
 
-// --- render list ---
 function renderAdminList() {
   if (!adminList) return;
 
@@ -389,17 +445,17 @@ function renderAdminList() {
     .map((p) => {
       const title = escapeHtml(p.name || "Без названия");
       const cat = p.category ? escapeHtml(p.category) : "";
-      const price = money(p.price);
+      const price = money(p.price || 0);
       const imgsCount = Array.isArray(p.images) ? p.images.length : 0;
 
       return `
-        <div class="admin-item">
+        <div class="admin-item" data-edit="${escapeHtml(p.id)}">
           <div style="min-width:0;">
             <div style="font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</div>
             <div style="opacity:.75; font-size:12px;">${cat ? cat + " · " : ""}${price} · фото: ${imgsCount}</div>
           </div>
           <div class="admin-actions">
-            <button class="btn-secondary" data-edit="${escapeHtml(p.id)}" type="button">✏️</button>
+            <button class="btn-secondary" data-editbtn="${escapeHtml(p.id)}" type="button">✏️</button>
             <button class="btn-secondary" data-del="${escapeHtml(p.id)}" type="button">🗑</button>
           </div>
         </div>
@@ -407,15 +463,26 @@ function renderAdminList() {
     })
     .join("");
 
-  // bind edit/delete
-  adminList.querySelectorAll("[data-edit]").forEach((b) => {
-    b.addEventListener("click", () => fillAdminFormById(b.getAttribute("data-edit")));
+  adminList.querySelectorAll("[data-editbtn]").forEach((b) => {
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fillAdminFormById(b.getAttribute("data-editbtn"));
+    });
   });
+
   adminList.querySelectorAll("[data-del]").forEach((b) => {
-    b.addEventListener("click", () => deleteFlower(b.getAttribute("data-del")));
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteFlower(b.getAttribute("data-del"));
+    });
+  });
+
+  // click row -> edit
+  adminList.querySelectorAll("[data-edit]").forEach((row) => {
+    row.addEventListener("click", () => fillAdminFormById(row.getAttribute("data-edit")));
   });
 }
 
 // ====== BOOT ======
 initAdminAccess();
-clearAdminForm(); // создаст 1 пустую строку для фото
+clearAdminForm(); // создаст 1 строку фото
