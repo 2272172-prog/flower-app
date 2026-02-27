@@ -1,120 +1,488 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>MEMENTO FLOS</title>
+// =====================
+// app.js (CATALOG + PRODUCT MODAL GALLERY + ORDER + ADMIN CRUD)
+// =====================
 
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
+// ====== HELPERS ======
+const money = (n) => (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
+const escapeHtml = (s) =>
+  String(s ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 
-  <!-- Firebase v8 -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+let toastTimer = null;
+function showToast(text = "Готово ✅") {
+  const t = document.getElementById("toast");
+  if (!t) return;
+  t.textContent = text;
+  t.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.style.display = "none"), 1500);
+}
 
-  <!-- Telegram WebApp -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+// ====== FIREBASE CONFIG ======
+const firebaseConfig = {
+  apiKey: "AIzaSyAL1CfJ2NaTiu1uc4ybH8lUdnUeBNNpXLw",
+  authDomain: "flower-app-5a32c.firebaseapp.com",
+  projectId: "flower-app-5a32c",
+  storageBucket: "flower-app-5a32c.firebasestorage.app",
+  messagingSenderId: "540208840853",
+  appId: "1:540208840853:web:250f64a9ceedde1620db9c",
+};
 
-  <style>
-    :root{ --bg:#f8f6f3; --card:#fff; --text:#111; --muted:rgba(0,0,0,.6); --line:rgba(0,0,0,.08); --r:22px; }
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    body{margin:0;background:var(--bg);font-family:Manrope,system-ui;color:var(--text)}
-    body.modal-open{position:fixed;width:100%}
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-    .header{position:sticky;top:0;background:linear-gradient(180deg,rgba(248,246,243,1) 70%, rgba(248,246,243,0));padding:24px 16px 12px;text-align:center;z-index:5}
-    .brand{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:36px;letter-spacing:6px;margin:0}
-    .adminBtn{margin-top:10px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;font-weight:800;cursor:pointer;display:none}
+// ====== TELEGRAM INIT ======
+const tg = window.Telegram?.WebApp || null;
+let tgUser = null;
 
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}
-    .card{background:var(--card);border-radius:var(--r);overflow:hidden;border:1px solid var(--line);cursor:pointer}
-    .card img{width:100%;height:190px;object-fit:cover;display:block}
-    .cb{padding:12px}
-    .ct{font-weight:700;font-size:14px;min-height:38px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    .price{margin-top:6px;font-weight:800;color:#111}
+if (tg) {
+  tg.expand();
+  tg.ready?.();
+  tgUser = tg.initDataUnsafe?.user || null;
+}
 
-    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 12px;border-radius:14px;font-weight:800;display:none;z-index:9999}
+// ====== ADMIN SETTINGS ======
+const ADMIN_IDS = [41830773]; // твой Telegram user id
+let isAdmin = false;
+let editingFlowerId = null;
 
-    /* MODAL base */
-    .bg{position:fixed;inset:0;background:rgba(17,24,39,.55);display:none;align-items:center;justify-content:center;padding:12px;z-index:9998}
-    .modal{width:100%;max-width:560px;background:var(--bg);border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.2);max-height:88dvh;display:flex;flex-direction:column}
-    .mh{background:#fff;border-bottom:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;justify-content:space-between}
-    .mt{font-weight:900}
-    .x{width:40px;height:40px;border-radius:14px;border:1px solid var(--line);background:#fff;font-weight:900;cursor:pointer}
-    .mb{padding:14px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:120px}
+// ====== UI refs ======
+const catalogDiv = document.getElementById("catalog");
 
-    .input,.ta{width:100%;border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px;font-size:14px;outline:none}
-    .ta{min-height:120px;line-height:1.35;resize:vertical}
-    .row2{display:flex;gap:10px;margin-top:10px}
-    .row2 > *{flex:1}
-    .btn{border:none;border-radius:14px;padding:12px;font-weight:900;cursor:pointer;background:#111;color:#fff}
-    .btn2{border:1px solid var(--line);border-radius:14px;padding:12px;font-weight:900;cursor:pointer;background:#fff;color:#111}
-    .hr{height:1px;background:var(--line);margin:14px 0}
-    .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.35}
+// Product modal
+const productModalBg = document.getElementById("productModalBg");
+const pmClose = document.getElementById("pmClose");
+const pmTrack = document.getElementById("pmTrack");
+const pmDots = document.getElementById("pmDots");
+const pmTitle = document.getElementById("pmTitle");
+const pmPrice = document.getElementById("pmPrice");
+const pmOrder = document.getElementById("pmOrder");
+let currentProduct = null;
 
-    .imgRow{display:flex;gap:10px;align-items:center;margin-top:10px}
-    .imgRow input{flex:1}
-    .mini{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:900}
-    .adminList{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
-    .adminItem{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px;border-bottom:1px solid rgba(0,0,0,.06)}
-    .adminItem:last-child{border-bottom:none}
-    .small{font-size:12px;color:var(--muted)}
-  </style>
-</head>
+// Admin modal
+const adminBtn = document.getElementById("adminBtn");
+const adminModalBg = document.getElementById("adminModalBg");
+const adminClose = document.getElementById("adminClose");
 
-<body>
-  <div class="header">
-    <h1 class="brand">MEMENTO FLOS</h1>
-    <button id="adminBtn" class="adminBtn" type="button">Админ</button>
-  </div>
+const adName = document.getElementById("adName");
+const adPrice = document.getElementById("adPrice");
+const adCategory = document.getElementById("adCategory");
+const adDesc = document.getElementById("adDesc");
+const addImgRowBtn = document.getElementById("addImgRow");
+const imgRows = document.getElementById("imgRows");
+const adClear = document.getElementById("adClear");
+const adSave = document.getElementById("adSave");
+const adminList = document.getElementById("adminList");
 
-  <div id="toast" class="toast">Готово ✅</div>
+// State
+let lastCatalog = []; // [{id, ...data}]
 
-  <div id="catalog" class="grid"></div>
+// ====== ADMIN ACCESS ======
+function initAdminAccess() {
+  isAdmin = Boolean(tgUser && ADMIN_IDS.includes(Number(tgUser.id)));
+  if (adminBtn) adminBtn.style.display = isAdmin ? "inline-flex" : "none";
+}
 
-  <!-- ADMIN MODAL -->
-  <div id="adminModalBg" class="bg">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="mh">
-        <div class="mt">🛠 Админка</div>
-        <button id="adminClose" class="x" type="button">✕</button>
-      </div>
+// =====================
+// ORDER (ONE CLICK)
+// =====================
+async function orderOneClick(productId, data) {
+  const product = {
+    id: productId,
+    name: data.name || "Без названия",
+    price: Number(data.price || 0),
+  };
 
-      <div class="mb">
-        <div class="small">Фото добавляем ссылками (каждая ссылка = отдельное фото). Работает бесплатно.</div>
+  const payload = {
+    type: "quick_order",
+    product,
+    qty: 1,
+    total: product.price,
+    customer: {
+      tgUserId: tgUser?.id || null,
+      tgUsername: tgUser?.username ? `@${tgUser.username}` : null,
+      firstName: tgUser?.first_name || null,
+      lastName: tgUser?.last_name || null,
+    },
+    createdAt: Date.now(),
+  };
 
-        <div class="hr"></div>
+  // write to Firestore (optional but useful)
+  try {
+    await db.collection("orders").add({ ...payload, status: "new" });
+  } catch (e) {
+    console.error("Firestore orders add error:", e);
+  }
 
-        <input id="adName" class="input" placeholder="Название" />
-        <div class="row2">
-          <input id="adPrice" class="input" placeholder="Цена (число)" inputmode="numeric" />
-          <input id="adCategory" class="input" placeholder="Категория (опционально)" />
-        </div>
-        <textarea id="adDesc" class="ta" placeholder="Описание"></textarea>
+  if (!tg?.sendData) {
+    showToast("Открой мини-апп внутри Telegram");
+    alert("Открой сайт через кнопку в боте, тогда заказ уйдёт в Telegram.");
+    return;
+  }
 
-        <div class="hr"></div>
+  try {
+    showToast("Заказ отправлен ✅");
 
-        <div style="font-weight:900;">Фото (ссылки)</div>
-        <div id="imgRows"></div>
-        <div class="row2">
-          <button id="addImgRow" class="btn2" type="button">+ Добавить ссылку</button>
-          <button id="clearImgs" class="btn2" type="button">Очистить фото</button>
-        </div>
-        <div class="hint">Где брать ссылки: postimages.org / imgbb.com — загрузил → скопировал прямую ссылку на картинку.</div>
+    if (tg.HapticFeedback) {
+      try { tg.HapticFeedback.impactOccurred("light"); } catch {}
+    }
 
-        <div class="hr"></div>
+    tg.sendData(JSON.stringify(payload));
+    tg.close();
+  } catch (e) {
+    console.error("sendData error:", e);
+    alert("Не удалось отправить заказ в Telegram. Проверь, что открыто внутри бота.");
+  }
+}
 
-        <div class="row2">
-          <button id="adClear" class="btn2" type="button">Очистить форму</button>
-          <button id="adSave" class="btn" type="button">Сохранить</button>
-        </div>
+// =====================
+// PRODUCT MODAL (GALLERY)
+// =====================
+function openProductModal(product) {
+  currentProduct = product;
 
-        <div class="hr"></div>
+  const images = Array.isArray(product.images) && product.images.length
+    ? product.images
+    : ["https://via.placeholder.com/800x600?text=Flower"];
 
-        <div style="font-weight:900;margin-bottom:10px;">Товары</div>
-        <div id="adminList" class="adminList"></div>
-      </div>
+  pmTrack.innerHTML = images.map(url => `
+    <div class="pm-slide">
+      <img src="${escapeHtml(url)}"
+           onerror="this.onerror=null;this.src='https://via.placeholder.com/800x600?text=Flower';">
     </div>
-  </div>
+  `).join("");
 
-  <script src="app.js"></script>
-</body>
-</html>
+  pmDots.innerHTML = images.map((_, i) =>
+    `<div class="pm-dot ${i === 0 ? "active" : ""}"></div>`
+  ).join("");
+
+  pmTrack.scrollLeft = 0;
+  pmTrack.onscroll = () => {
+    const w = pmTrack.clientWidth || 1;
+    const idx = Math.round(pmTrack.scrollLeft / w);
+    Array.from(pmDots.children).forEach((d, i) => d.classList.toggle("active", i === idx));
+  };
+
+  pmTitle.textContent = product.name || "Без названия";
+  pmPrice.textContent = money(product.price || 0);
+
+  productModalBg.style.display = "flex";
+}
+
+function closeProductModal() {
+  productModalBg.style.display = "none";
+}
+
+if (pmClose) pmClose.addEventListener("click", closeProductModal);
+if (productModalBg) {
+  productModalBg.addEventListener("click", (e) => {
+    if (e.target === productModalBg) closeProductModal();
+  });
+}
+if (pmOrder) {
+  pmOrder.addEventListener("click", () => {
+    if (!currentProduct) return;
+    orderOneClick(currentProduct.id, currentProduct);
+  });
+}
+
+// =====================
+// CATALOG RENDER
+// =====================
+function renderProducts(snapshot) {
+  catalogDiv.innerHTML = "";
+  lastCatalog = [];
+
+  snapshot.forEach((doc) => {
+    const data = doc.data() || {};
+    const id = doc.id;
+
+    const product = { id, ...data };
+    lastCatalog.push(product);
+
+    const images = Array.isArray(data.images) ? data.images.filter(Boolean) : [];
+    const cover = images.length ? images[0] : "https://via.placeholder.com/600x400?text=Flower";
+
+    const title = escapeHtml(data.name || "Без названия");
+    const price = money(data.price || 0);
+
+    catalogDiv.innerHTML += `
+      <div class="card" data-open="${escapeHtml(id)}">
+        <img
+          src="${escapeHtml(cover)}"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+          onerror="this.onerror=null;this.src='https://via.placeholder.com/600x400?text=Flower';"
+        >
+        <div class="card-body">
+          <div class="card-title">${title}</div>
+          <div class="price">${price}</div>
+          <button class="buy" data-order="${escapeHtml(id)}" type="button">Заказать</button>
+        </div>
+      </div>
+    `;
+  });
+
+  // Click card => open modal (not when clicking button)
+  document.querySelectorAll("[data-open]").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("[data-order]")) return;
+      const id = card.getAttribute("data-open");
+      const p = lastCatalog.find(x => x.id === id);
+      if (p) openProductModal(p);
+    });
+  });
+
+  // Order button => open modal and order inside (or direct order)
+  document.querySelectorAll("[data-order]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-order");
+      const p = lastCatalog.find(x => x.id === id);
+      if (p) openProductModal(p); // заказ из модалки
+    });
+  });
+
+  if (isAdmin) renderAdminList();
+}
+
+// ====== LOAD FLOWERS ======
+db.collection("flowers").onSnapshot(
+  (snapshot) => {
+    if (snapshot.empty) {
+      catalogDiv.innerHTML =
+        "<div style='padding:16px;color:rgba(17,24,39,.65)'>Товаров нет. Добавь документы в коллекцию <b>flowers</b>.</div>";
+      lastCatalog = [];
+      if (isAdmin) renderAdminList();
+      return;
+    }
+    renderProducts(snapshot);
+  },
+  (err) => {
+    console.error(err);
+    alert("Ошибка Firestore: " + (err?.message || err));
+  }
+);
+
+// =====================
+// ADMIN PANEL
+// =====================
+
+// modal open/close
+function openAdminModal() {
+  if (!isAdmin) return;
+  adminModalBg.style.display = "flex";
+  renderAdminList();
+}
+function closeAdminModal() {
+  adminModalBg.style.display = "none";
+}
+
+if (adminBtn) adminBtn.addEventListener("click", openAdminModal);
+if (adminClose) adminClose.addEventListener("click", closeAdminModal);
+if (adminModalBg) {
+  adminModalBg.addEventListener("click", (e) => {
+    if (e.target === adminModalBg) closeAdminModal();
+  });
+}
+
+// images rows
+function createImgRow(value = "") {
+  const row = document.createElement("div");
+  row.className = "img-row";
+
+  const input = document.createElement("input");
+  input.className = "input";
+  input.placeholder = "https://...jpg";
+  input.value = value;
+
+  const preview = document.createElement("img");
+  preview.className = "img-preview";
+  preview.alt = "preview";
+  preview.src = value || "https://via.placeholder.com/80x80?text=+";
+  preview.onerror = () => { preview.src = "https://via.placeholder.com/80x80?text=+"; };
+
+  input.addEventListener("input", () => {
+    const v = input.value.trim();
+    preview.src = v || "https://via.placeholder.com/80x80?text=+";
+  });
+
+  const del = document.createElement("button");
+  del.className = "img-del";
+  del.type = "button";
+  del.textContent = "🗑";
+  del.addEventListener("click", () => row.remove());
+
+  row.appendChild(input);
+  row.appendChild(preview);
+  row.appendChild(del);
+
+  return row;
+}
+
+function clearImgRows() {
+  imgRows.innerHTML = "";
+}
+
+function setImagesRows(images = []) {
+  clearImgRows();
+  const arr = Array.isArray(images) ? images : [];
+  if (arr.length === 0) {
+    imgRows.appendChild(createImgRow(""));
+    return;
+  }
+  arr.forEach((url) => imgRows.appendChild(createImgRow(url)));
+}
+
+function getImagesFromRows() {
+  const inputs = Array.from(imgRows.querySelectorAll("input"));
+  return inputs.map((i) => i.value.trim()).filter(Boolean);
+}
+
+if (addImgRowBtn) {
+  addImgRowBtn.addEventListener("click", () => {
+    const row = createImgRow("");
+    imgRows.appendChild(row);
+    const input = row.querySelector("input");
+    if (input) input.focus();
+  });
+}
+
+function clearAdminForm() {
+  editingFlowerId = null;
+  adName.value = "";
+  adPrice.value = "";
+  adCategory.value = "";
+  adDesc.value = "";
+  setImagesRows([]);
+  adSave.textContent = "Сохранить";
+}
+
+function fillAdminFormById(id) {
+  const p = lastCatalog.find((x) => x.id === id);
+  if (!p) return;
+
+  editingFlowerId = id;
+  adName.value = p.name || "";
+  adPrice.value = String(p.price ?? "");
+  adCategory.value = p.category || "";
+  adDesc.value = p.desc || p.description || "";
+  setImagesRows(Array.isArray(p.images) ? p.images : []);
+  adSave.textContent = "Обновить";
+}
+
+if (adClear) adClear.addEventListener("click", clearAdminForm);
+
+async function saveFlower() {
+  if (!isAdmin) return;
+
+  const name = (adName.value || "").trim();
+  const price = Number((adPrice.value || "").trim());
+  const category = (adCategory.value || "").trim();
+  const desc = (adDesc.value || "").trim();
+  const images = getImagesFromRows();
+
+  if (!name) return alert("Название обязательно");
+  if (!Number.isFinite(price) || price <= 0) return alert("Цена должна быть числом > 0");
+  if (images.length < 1) return alert("Добавь хотя бы 1 ссылку на фото");
+
+  const data = {
+    name,
+    price,
+    category,
+    desc,
+    images,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  try {
+    if (editingFlowerId) {
+      await db.collection("flowers").doc(editingFlowerId).set(data, { merge: true });
+      showToast("Обновлено ✅");
+    } else {
+      await db.collection("flowers").add({
+        ...data,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      showToast("Добавлено ✅");
+    }
+    clearAdminForm();
+  } catch (e) {
+    console.error(e);
+    alert("Ошибка сохранения. Проверь Rules Firestore.");
+  }
+}
+
+if (adSave) adSave.addEventListener("click", saveFlower);
+
+async function deleteFlower(id) {
+  if (!isAdmin) return;
+  if (!confirm("Удалить товар?")) return;
+
+  try {
+    await db.collection("flowers").doc(id).delete();
+    showToast("Удалено ✅");
+    if (editingFlowerId === id) clearAdminForm();
+  } catch (e) {
+    console.error(e);
+    alert("Ошибка удаления");
+  }
+}
+
+function renderAdminList() {
+  if (!adminList) return;
+
+  if (!lastCatalog.length) {
+    adminList.innerHTML = `<div class="admin-item"><div style="opacity:.7;">Пока нет товаров</div></div>`;
+    return;
+  }
+
+  adminList.innerHTML = lastCatalog
+    .map((p) => {
+      const title = escapeHtml(p.name || "Без названия");
+      const cat = p.category ? escapeHtml(p.category) : "";
+      const price = money(p.price || 0);
+      const imgsCount = Array.isArray(p.images) ? p.images.length : 0;
+
+      return `
+        <div class="admin-item" data-edit="${escapeHtml(p.id)}">
+          <div style="min-width:0;">
+            <div style="font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</div>
+            <div style="opacity:.75; font-size:12px;">${cat ? cat + " · " : ""}${price} · фото: ${imgsCount}</div>
+          </div>
+          <div class="admin-actions">
+            <button class="btn-secondary" data-editbtn="${escapeHtml(p.id)}" type="button">✏️</button>
+            <button class="btn-secondary" data-del="${escapeHtml(p.id)}" type="button">🗑</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  adminList.querySelectorAll("[data-editbtn]").forEach((b) => {
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fillAdminFormById(b.getAttribute("data-editbtn"));
+    });
+  });
+
+  adminList.querySelectorAll("[data-del]").forEach((b) => {
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteFlower(b.getAttribute("data-del"));
+    });
+  });
+
+  // click row -> edit
+  adminList.querySelectorAll("[data-edit]").forEach((row) => {
+    row.addEventListener("click", () => fillAdminFormById(row.getAttribute("data-edit")));
+  });
+}
+
+// ====== BOOT ======
+initAdminAccess();
+clearAdminForm(); // создаст 1 строку фото
