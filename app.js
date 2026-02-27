@@ -1,4 +1,4 @@
-document.body.insertAdjacentHTML("afterbegin", "<div style='padding:10px;background:#d1fae5'>app.js работает ✅</div>");
+
 // ====== FIREBASE CONFIG ======
 const firebaseConfig = {
   apiKey: "AIzaSyAL1CfJ2NaTiu1uc4ybH8lUdnUeBNNpXLw",
