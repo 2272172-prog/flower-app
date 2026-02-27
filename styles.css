@@ -18,11 +18,6 @@ body{
   color:var(--text);
 }
 
-body.modal-open{
-  position: fixed;      /* фикс прыжков фона при клавиатуре */
-  width:100%;
-}
-
 .app{ padding-bottom: 24px; }
 
 /* ===== HEADER ===== */
@@ -99,9 +94,25 @@ body.modal-open{
 
 .price{
   font-weight:800;
-  margin-bottom: 0;
+  margin-bottom: 12px;
   font-size: 14px;
 }
+
+.buy{
+  width:100%;
+  padding: 14px;
+  border:none;
+  border-radius: 18px;
+  background:#111;
+  color:#fff;
+  font-family:'Manrope', sans-serif;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  cursor:pointer;
+  transition: transform .2s ease, opacity .2s ease;
+}
+
+.buy:hover{ opacity:.92; transform: translateY(-2px); }
 
 /* ===== TOAST ===== */
 .toast{
@@ -233,15 +244,13 @@ body.modal-open{
 }
 
 /* ===== ADMIN MODAL ===== */
-/* FIX keyboard jumping: center + internal scroll + dvh */
 .modal-bg{
   position:fixed;
   inset:0;
   background:rgba(17,24,39,.55);
   display:flex;
-  align-items:center;       /* важно: не flex-end */
+  align-items:flex-end;
   justify-content:center;
-  padding: 12px;
   z-index:9998;
 }
 
@@ -249,18 +258,13 @@ body.modal-open{
   width:100%;
   max-width:560px;
   background:var(--bg);
-  border-radius:22px;
+  border-top-left-radius:22px;
+  border-top-right-radius:22px;
   box-shadow: var(--shadow2);
   overflow:hidden;
-
-  /* важно: dvh */
-  max-height: 88dvh;
-  display:flex;
-  flex-direction:column;
 }
 
 .modal-head{
-  flex:0 0 auto;
   display:flex;
   justify-content:space-between;
   align-items:center;
@@ -280,13 +284,7 @@ body.modal-open{
   font-size:16px;
 }
 
-.modal-body{
-  flex:1 1 auto;
-  overflow-y:auto;          /* ключ */
-  -webkit-overflow-scrolling: touch;
-  padding:16px;
-  padding-bottom: 130px;    /* запас под клавиатуру */
-}
+.modal-body{ padding:16px; }
 
 .input, .textarea{
   width:100%;
@@ -298,11 +296,7 @@ body.modal-open{
   outline:none;
 }
 
-.textarea{
-  min-height:120px;
-  resize:vertical;
-  line-height:1.35;
-}
+.textarea{ min-height:90px; resize:vertical; }
 
 .row2{ display:flex; gap:10px; margin-top:10px; }
 .row2 > *{ flex:1; }
@@ -355,8 +349,21 @@ body.modal-open{
 
 .img-row input{ flex:1; }
 
-.img-row input[type="file"]{
-  width: 140px;
+.img-preview{
+  width:44px; height:44px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  object-fit:cover;
+  background:#f1f5f9;
+}
+
+.img-del{
+  width:44px; height:44px;
+  border-radius:12px;
+  border:1px solid rgba(0,0,0,.10);
+  background:#fff;
+  cursor:pointer;
+  font-weight:900;
 }
 
 .admin-list{
@@ -376,9 +383,4 @@ body.modal-open{
 }
 .admin-item:last-child{ border-bottom:none; }
 
-@media (max-width: 420px){
-  .brand-title{ font-size: 34px; letter-spacing: 5px; }
-  .card img{ height: 200px; }
-  .pm-slider{ height: 340px; }
-  .pm-slide img{ height: 340px; }
-}
+.admin-actions{ display:flex; gap:8px; }
