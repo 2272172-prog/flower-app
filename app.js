@@ -46,7 +46,7 @@ if (tg) {
 }
 
 // ====== ADMIN SETTINGS ======
-const ADMIN_IDS = [1830773]; // твой Telegram user id
+const ADMIN_IDS = [41830773]; // твой Telegram user id
 let isAdmin = false;
 let editingFlowerId = null;
 
