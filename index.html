@@ -1,182 +1,241 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Flower Shop ULTRA</title>
+<meta charset="UTF-8">
+<title>Flower Shop</title>
 
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-body{margin:0;font-family:Arial;background:#fff0f5}
-header{display:flex;justify-content:space-between;padding:15px;background:white;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px;padding:20px}
-.card{background:white;border-radius:16px;box-shadow:0 4px 15px rgba(0,0,0,.08);overflow:hidden}
-.card img{width:100%;height:200px;object-fit:cover}
-.card div{padding:15px}
-button{border:none;border-radius:8px;padding:8px 12px;cursor:pointer}
-.primary{background:#e91e63;color:white}
-.cart{position:fixed;right:20px;bottom:20px;background:white;padding:15px;border-radius:16px;box-shadow:0 5px 20px rgba(0,0,0,.2);width:300px;max-height:400px;overflow:auto}
-input{padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:8px;width:100%}
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  background: #f7f7f7;
+  color: #111;
+}
+
+.app {
+  padding: 16px;
+  padding-bottom: 90px;
+}
+
+.header {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+
+.card img {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+}
+
+.card-content {
+  padding: 14px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.price {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 6px 0 10px;
+}
+
+.button {
+  background: #2AABEE;
+  color: white;
+  padding: 8px;
+  text-align: center;
+  border-radius: 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 75px;
+  background: white;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.nav-item {
+  font-size: 11px;
+  color: #888;
+  text-align: center;
+  cursor: pointer;
+}
+
+.nav-item.active {
+  color: #2AABEE;
+}
+
+.screen {
+  display: none;
+}
+
+.screen.active {
+  display: block;
+}
+
+.cart-item {
+  background: white;
+  padding: 12px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
 </style>
 </head>
+
 <body>
 
-<div id="root"></div>
+<div class="app">
 
-<script type="text/babel" data-type="module">
+  <div id="homeScreen" class="screen active">
+    <div class="header">🌸 Flower Shop</div>
+    <div id="catalog" class="grid"></div>
+  </div>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+  <div id="cartScreen" class="screen">
+    <div class="header">Корзина</div>
+    <div id="cartItems"></div>
+    <div id="cartTotal" style="margin-top:12px;font-weight:700;"></div>
+  </div>
 
+  <div id="profileScreen" class="screen">
+    <div class="header">Профиль</div>
+    <div id="profileData"></div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="switchScreen('homeScreen', this)">🏠<br>Главная</div>
+    <div class="nav-item" onclick="switchScreen('cartScreen', this)">🛒<br>Корзина</div>
+    <div class="nav-item" onclick="switchScreen('profileScreen', this)">👤<br>Профиль</div>
+  </div>
+
+</div>
+
+<script>
 const firebaseConfig = {
   apiKey: "ТВОЙ_API_KEY",
   authDomain: "flower-app-5a32c.firebaseapp.com",
   projectId: "flower-app-5a32c",
-  storageBucket: "flower-app-5a32c.appspot.com"
+  storageBucket: "flower-app-5a32c.appspot.com",
+  messagingSenderId: "540208840853",
+  appId: "1:540208840853:web:..."
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-const storage = getStorage(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-const { useState, useEffect } = React;
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
 
-function App() {
-  const [flowers,setFlowers]=useState([]);
-  const [cart,setCart]=useState(JSON.parse(localStorage.getItem("cart"))||[]);
-  const [user,setUser]=useState(null);
-  const [orders,setOrders]=useState([]);
+const catalogDiv = document.getElementById("catalog");
 
-  useEffect(()=>{
-    onSnapshot(collection(db,"flowers"),snap=>{
-      setFlowers(snap.docs.map(d=>({...d.data(),id:d.id})));
-    });
-  },[]);
+function loadFlowers() {
+  catalogDiv.innerHTML = "";
 
-  useEffect(()=>{
-    localStorage.setItem("cart",JSON.stringify(cart));
-  },[cart]);
+  db.collection("flowers").get().then(snapshot => {
+    snapshot.forEach(doc => {
+      const flower = doc.data();
 
-  useEffect(()=>{
-    onAuthStateChanged(auth,u=>{
-      setUser(u);
-      if(u){
-        const q=query(collection(db,"orders"),where("userId","==",u.uid));
-        onSnapshot(q,snap=>{
-          setOrders(snap.docs.map(d=>d.data()));
-        });
-      }
-    });
-  },[]);
-
-  const addToCart=f=>setCart([...cart,f]);
-  const removeFromCart=i=>setCart(cart.filter((_,idx)=>idx!==i));
-
-  const login=async()=>{
-    const email=prompt("Email");
-    const pass=prompt("Password");
-    await signInWithEmailAndPassword(auth,email,pass);
-  };
-
-  const checkout=async()=>{
-    if(!user) return alert("Войди");
-    const total=cart.reduce((s,i)=>s+i.price,0);
-    await addDoc(collection(db,"orders"),{
-      userId:user.uid,
-      items:cart,
-      total,
-      createdAt:new Date()
-    });
-    setCart([]);
-  };
-
-  const uploadFlower=async()=>{
-    if(!user) return;
-    const name=prompt("Название");
-    const price=Number(prompt("Цена"));
-    const input=document.createElement("input");
-    input.type="file";
-    input.onchange=async e=>{
-      const file=e.target.files[0];
-      const imageRef=ref(storage,"flowers/"+Date.now());
-      await uploadBytes(imageRef,file);
-      const url=await getDownloadURL(imageRef);
-
-      await addDoc(collection(db,"flowers"),{
-        name,price,image:url
-      });
-    };
-    input.click();
-  };
-
-  return (
-    <>
-      <header>
-        <h2>🌸 Flower ULTRA</h2>
-        <div>
-          {!user && <button onClick={login}>Войти</button>}
-          {user && <button className="primary" onClick={uploadFlower}>Добавить</button>}
-        </div>
-      </header>
-
-      <div className="grid">
-        {flowers.map(f=>(
-          <div className="card" key={f.id}>
-            <img src={f.image}/>
-            <div>
-              <h3>{f.name}</h3>
-              <p>{f.price} ₽</p>
-              <button className="primary" onClick={()=>addToCart(f)}>В корзину</button>
+      catalogDiv.innerHTML += `
+        <div class="card">
+          <img src="${flower.image}" onerror="this.src='https://via.placeholder.com/400x300?text=Flower'">
+          <div class="card-content">
+            <div class="title">${flower.name}</div>
+            <div class="price">${flower.price} ₽</div>
+            <div class="button" onclick="addToCart('${flower.name}', ${flower.price})">
+              В корзину
             </div>
           </div>
-        ))}
-      </div>
-
-      <div className="cart">
-        <h3>Корзина</h3>
-        {cart.map((c,i)=>(
-          <div key={i}>
-            {c.name} — {c.price} ₽
-            <button onClick={()=>removeFromCart(i)}>❌</button>
-          </div>
-        ))}
-        <hr/>
-        <b>Итого: {cart.reduce((s,i)=>s+i.price,0)} ₽</b>
-        <br/><br/>
-        <button className="primary" onClick={checkout}>Оформить</button>
-      </div>
-
-      {user && (
-        <div style={{padding:"20px"}}>
-          <h3>Мои заказы</h3>
-          {orders.map((o,i)=>(
-            <div key={i}>
-              Сумма: {o.total} ₽ | Товаров: {o.items.length}
-            </div>
-          ))}
         </div>
-      )}
-    </>
-  );
+      `;
+    });
+  });
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+loadFlowers();
 
-if("serviceWorker" in navigator){
-  const swBlob = new Blob([`
-    self.addEventListener('install', e=>self.skipWaiting());
-    self.addEventListener('fetch', e=>{});
-  `], { type: 'text/javascript' });
+function switchScreen(id, el) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 
-  navigator.serviceWorker.register(URL.createObjectURL(swBlob));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+
+  if (id === "cartScreen") renderCart();
+  if (id === "profileScreen") loadProfile();
 }
 
+function addToCart(name, price) {
+  cart.push({name, price});
+  localStorage.setItem("cart", JSON.stringify(cart));
+}
+
+function renderCart() {
+  const div = document.getElementById("cartItems");
+  const totalDiv = document.getElementById("cartTotal");
+
+  div.innerHTML = "";
+  let total = 0;
+
+  cart.forEach(item => {
+    total += item.price;
+    div.innerHTML += `
+      <div class="cart-item">
+        <div>${item.name}</div>
+        <div>${item.price} ₽</div>
+      </div>
+    `;
+  });
+
+  totalDiv.innerText = "Итого: " + total + " ₽";
+}
+
+function loadProfile() {
+  if (window.Telegram && Telegram.WebApp) {
+    const user = Telegram.WebApp.initDataUnsafe.user;
+    if (user) {
+      document.getElementById("profileData").innerHTML = `
+        <div>Имя: ${user.first_name}</div>
+        <div>Username: @${user.username || ''}</div>
+        <div>ID: ${user.id}</div>
+      `;
+    }
+  }
+}
+
+if (window.Telegram && Telegram.WebApp) {
+  Telegram.WebApp.expand();
+}
 </script>
 
 </body>
