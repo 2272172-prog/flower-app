@@ -1,10 +1,12 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Flower Shop</title>
+  <title>MEMENTO FLOS</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -19,35 +21,18 @@
 
 <div class="app">
 
- <header>
-  <h1>MEMENTO FLOS </h1>
-
-  <div style="display:flex; gap:10px; align-items:center;">
-    <div id="cartPill" style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:999px; background:#fff; box-shadow:0 6px 16px rgba(0,0,0,.06); font-weight:700;">
-      🛒 <span id="cartCount">0</span>
-    </div>
-
-    <button id="adminBtn" style="display:none;">Админ</button>
-  </div>
-<header>
-  <h1> </h1>
-  <button id="adminBtn" style="display:none;">Админ</button>
+<header class="main-header">
+  <h1 class="brand-title">MEMENTO FLOS</h1>
 </header>
 
-<div id="toast" style="position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#111827; color:#fff; padding:10px 12px; border-radius:12px; font-weight:700; display:none; z-index:9999;">
+<div id="toast" class="toast">
   Отправляем заказ…
 </div>
 
 <div id="catalog" class="grid"></div>
 
-<div id="toast" style="position:fixed; left:50%; bottom:88px; transform:translateX(-50%); background:#111827; color:#fff; padding:10px 12px; border-radius:12px; font-weight:700; display:none; z-index:9999;">
-  Добавлено в корзину ✅
-</div>
-
-  <div id="catalog" class="grid"></div>
-
 </div>
 
 <script src="app.js"></script>
 </body>
-</html>на 
+</html>
