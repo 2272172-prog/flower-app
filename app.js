@@ -1,8 +1,8 @@
 // =====================
-// app.js (FULL + cart badge + toast)
+// app.js (NO CART → ORDER via sendData)
 // =====================
 
-// ====== 0) HELPERS ======
+// ====== HELPERS ======
 const money = (n) => (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
 const escapeHtml = (s) =>
   String(s ?? "")
@@ -12,111 +12,91 @@ const escapeHtml = (s) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
-// ====== 1) FIREBASE CONFIG ======
-// Вставь свой конфиг из Firebase (Project settings → Your apps → flower-web → CDN)
+let toastTimer = null;
+function showToast(text = "Отправляем заказ…") {
+  const t = document.getElementById("toast");
+  if (!t) return;
+  t.textContent = text;
+  t.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.style.display = "none"), 1400);
+}
+
+// ====== FIREBASE CONFIG ======
 const firebaseConfig = {
   apiKey: "AIzaSyAL1CfJ2NaTiu1uc4ybH8lUdnUeBNNpXLw",
   authDomain: "flower-app-5a32c.firebaseapp.com",
   projectId: "flower-app-5a32c",
-  // storageBucket сейчас не используется (мы грузим фото по URL из images[]),
-  // но оставляем как есть. Если позже будем загружать фото в Storage — поправим при необходимости.
   storageBucket: "flower-app-5a32c.firebasestorage.app",
   messagingSenderId: "540208840853",
   appId: "1:540208840853:web:250f64a9ceedde1620db9c",
 };
 
-if (!window.firebase) {
-  alert("Firebase не загрузился. Проверь <script> в index.html");
-}
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ====== 2) ADMIN SETTINGS ======
-const ADMIN_IDS = [2272172]; // твой Telegram user id (числом)
-
-// ====== 3) TELEGRAM INIT (опционально) ======
+// ====== TELEGRAM INIT ======
 let tgUser = null;
-let isAdmin = false;
+const tg = window.Telegram?.WebApp || null;
 
-if (window.Telegram?.WebApp) {
-  Telegram.WebApp.expand();
-  Telegram.WebApp.ready?.();
-  tgUser = Telegram.WebApp.initDataUnsafe?.user || null;
-
-  if (tgUser && ADMIN_IDS.includes(Number(tgUser.id))) {
-    isAdmin = true;
-    const adminBtn = document.getElementById("adminBtn");
-    if (adminBtn) adminBtn.style.display = "block";
-  }
+if (tg) {
+  tg.expand();
+  tg.ready?.();
+  tgUser = tg.initDataUnsafe?.user || null;
 }
 
-// ====== 4) CART (localStorage) ======
-const LS_CART = "fs_cart_v1";
-let cart = loadCart();
-
-function loadCart() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_CART) || "{}");
-  } catch {
-    return {};
-  }
-}
-function saveCart() {
-  localStorage.setItem(LS_CART, JSON.stringify(cart));
-}
-function cartCount() {
-  return Object.values(cart).reduce((s, it) => s + (it.qty || 0), 0);
-}
-
-// --- UI: badge + toast ---
-function updateCartUI() {
-  const el = document.getElementById("cartCount");
-  if (el) el.textContent = String(cartCount());
-}
-
-let toastTimer = null;
-function showToast(text = "Добавлено в корзину ✅") {
-  const t = document.getElementById("toast");
-  if (!t) return;
-
-  t.textContent = text;
-  t.style.display = "block";
-
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    t.style.display = "none";
-  }, 1200);
-}
-
-function addToCart(id, data) {
-  if (!cart[id]) {
-    cart[id] = {
+// ====== ORDER (ONE-CLICK) ======
+async function orderOneClick(id, data) {
+  const payload = {
+    type: "quick_order",
+    product: {
       id,
       name: data.name || "Без названия",
       price: Number(data.price || 0),
-      qty: 0,
-    };
-  }
-  cart[id].qty += 1;
-  saveCart();
+    },
+    qty: 1,
+    total: Number(data.price || 0),
+    customer: {
+      tgUserId: tgUser?.id || null,
+      tgUsername: tgUser?.username || null,
+      firstName: tgUser?.first_name || null,
+      lastName: tgUser?.last_name || null,
+    },
+    createdAt: Date.now(),
+  };
 
-  // Telegram haptic (если внутри Telegram)
-  if (window.Telegram?.WebApp?.HapticFeedback) {
+  // 1) Сохраним заказ в Firestore (опционально, но удобно)
+  try {
+    await db.collection("orders").add({
+      ...payload,
+      status: "new",
+    });
+  } catch (e) {
+    console.error("orders add error", e);
+    // даже если Firestore не записался — можем отправить в бота
+  }
+
+  // 2) Отправим в бота и закроем мини-апп
+  if (tg?.sendData) {
+    showToast("Заказ отправлен ✅");
     try {
-      Telegram.WebApp.HapticFeedback.impactOccurred("light");
-    } catch {}
+      tg.sendData(JSON.stringify(payload));
+      // небольшой хаптик
+      if (tg.HapticFeedback) {
+        try { tg.HapticFeedback.impactOccurred("light"); } catch {}
+      }
+      tg.close(); // после этого пользователь увидит личку, когда бот ответит
+      return;
+    } catch (e) {
+      console.error("sendData error", e);
+    }
   }
 
-  updateCartUI();
-  showToast();
+  alert("Открой мини-апп внутри Telegram, чтобы отправить заказ боту.");
 }
 
-// ====== 5) RENDER CATALOG ======
+// ====== RENDER CATALOG ======
 const catalogDiv = document.getElementById("catalog");
-if (!catalogDiv) {
-  console.warn("Не найден #catalog в index.html");
-}
 
 function renderProducts(snapshot) {
   catalogDiv.innerHTML = "";
@@ -144,24 +124,23 @@ function renderProducts(snapshot) {
         <div class="card-body">
           <div>${name}</div>
           <div class="price">${price}</div>
-          <button class="buy" data-id="${escapeHtml(id)}">В корзину</button>
+          <button class="buy" data-id="${escapeHtml(id)}">Заказать</button>
         </div>
       </div>
     `;
   });
 
-  // навешиваем обработчики на кнопки
   document.querySelectorAll("button.buy").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
       const doc = snapshot.docs.find((d) => d.id === id);
       if (!doc) return;
-      addToCart(id, doc.data() || {});
+      orderOneClick(id, doc.data() || {});
     });
   });
 }
 
-// ====== 6) LOAD FLOWERS (Firestore realtime) ======
+// ====== LOAD FLOWERS ======
 db.collection("flowers").onSnapshot(
   (snapshot) => {
     if (snapshot.empty) {
@@ -173,13 +152,6 @@ db.collection("flowers").onSnapshot(
   },
   (err) => {
     console.error(err);
-    alert(
-      "Ошибка Firestore: " +
-        (err?.message || err) +
-        "\n\nЧасто причина: Rules (permissions) или неверный firebaseConfig."
-    );
+    alert("Ошибка Firestore: " + (err?.message || err));
   }
 );
-
-// ====== 7) BOOT ======
-updateCartUI();
