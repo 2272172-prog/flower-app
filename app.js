@@ -1,5 +1,5 @@
 // =====================
-// app.js (NO CART → ORDER via sendData)
+// app.js (ORDER 1-CLICK, no cart)
 // =====================
 
 // ====== HELPERS ======
@@ -19,7 +19,7 @@ function showToast(text = "Отправляем заказ…") {
   t.textContent = text;
   t.style.display = "block";
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.style.display = "none"), 1400);
+  toastTimer = setTimeout(() => (t.style.display = "none"), 1500);
 }
 
 // ====== FIREBASE CONFIG ======
@@ -36,8 +36,8 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // ====== TELEGRAM INIT ======
-let tgUser = null;
 const tg = window.Telegram?.WebApp || null;
+let tgUser = null;
 
 if (tg) {
   tg.expand();
@@ -45,54 +45,62 @@ if (tg) {
   tgUser = tg.initDataUnsafe?.user || null;
 }
 
-// ====== ORDER (ONE-CLICK) ======
-async function orderOneClick(id, data) {
+// ====== ORDER (ONE CLICK) ======
+async function orderOneClick(productId, data) {
+  const product = {
+    id: productId,
+    name: data.name || "Без названия",
+    price: Number(data.price || 0),
+  };
+
   const payload = {
     type: "quick_order",
-    product: {
-      id,
-      name: data.name || "Без названия",
-      price: Number(data.price || 0),
-    },
+    product,
     qty: 1,
-    total: Number(data.price || 0),
+    total: product.price,
     customer: {
-      tgUserId: tgUser?.id || null,
-      tgUsername: tgUser?.username || null,
+      tgUserId: tgUser?.id || null,                 // главное
+      tgUsername: tgUser?.username ? `@${tgUser.username}` : null, // ник (если есть)
       firstName: tgUser?.first_name || null,
       lastName: tgUser?.last_name || null,
     },
     createdAt: Date.now(),
   };
 
-  // 1) Сохраним заказ в Firestore (опционально, но удобно)
+  // 1) Запись в Firestore (можно оставить)
   try {
     await db.collection("orders").add({
       ...payload,
       status: "new",
     });
   } catch (e) {
-    console.error("orders add error", e);
-    // даже если Firestore не записался — можем отправить в бота
+    console.error("Firestore orders add error:", e);
+    // не блокируем отправку в бота
   }
 
-  // 2) Отправим в бота и закроем мини-апп
-  if (tg?.sendData) {
+  // 2) Отправка боту
+  if (!tg?.sendData) {
+    showToast("Открой мини-апп внутри Telegram");
+    alert("Открой сайт через кнопку в боте, тогда заказ уйдёт в Telegram.");
+    return;
+  }
+
+  try {
     showToast("Заказ отправлен ✅");
-    try {
-      tg.sendData(JSON.stringify(payload));
-      // небольшой хаптик
-      if (tg.HapticFeedback) {
-        try { tg.HapticFeedback.impactOccurred("light"); } catch {}
-      }
-      tg.close(); // после этого пользователь увидит личку, когда бот ответит
-      return;
-    } catch (e) {
-      console.error("sendData error", e);
-    }
-  }
 
-  alert("Открой мини-апп внутри Telegram, чтобы отправить заказ боту.");
+    // хаптик (если доступно)
+    if (tg.HapticFeedback) {
+      try { tg.HapticFeedback.impactOccurred("light"); } catch {}
+    }
+
+    tg.sendData(JSON.stringify(payload));
+
+    // Закрываем мини-апп — пользователь вернётся в чат с ботом
+    tg.close();
+  } catch (e) {
+    console.error("sendData error:", e);
+    alert("Не удалось отправить заказ в Telegram. Проверь, что открыто внутри бота.");
+  }
 }
 
 // ====== RENDER CATALOG ======
