@@ -40,14 +40,19 @@ db.collection("flowers").onSnapshot(snapshot => {
       ? data.images[0]
       : "https://via.placeholder.com/600x400?text=Flower";
 
-    catalogDiv.innerHTML += `
-      <div class="card">
-        <img src="${img}">
-        <div class="card-body">
-          <div>${data.name}</div>
-          <div class="price">${data.price} ₽</div>
-        </div>
-      </div>
+   catalogDiv.innerHTML += `
+  <div class="card">
+    <img 
+      src="${img}"
+      onerror="this.src='https://via.placeholder.com/600x400?text=Flower';"
+    >
+    <div class="card-body">
+      <div>${data.name}</div>
+      <div class="price">${data.price} ₽</div>
+      <button class="buy">В корзину</button>
+    </div>
+  </div>
+`;
     `;
   });
 });
