@@ -27,31 +27,62 @@ body {
 
 .card {
   background: white;
-  border-radius: 18px;
+  border-radius: 22px;
   overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-  transition: transform 0.2s ease;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
 }
 
 .card img {
   width: 100%;
-  height: 190px;
+  height: 220px;
   object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.card:hover img {
+  transform: scale(1.05);
 }
 
 .card-body {
-  padding: 14px;
+  padding: 18px;
 }
 
 .card-body div:first-child {
-  font-weight: 600;
-  margin-bottom: 6px;
+  font-weight: 500;
+  font-size: 16px;
+  margin-bottom: 10px;
 }
 
+.price {
+  font-weight: 700;
+  margin-bottom: 14px;
+  font-size: 15px;
+}
+
+.buy {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 18px;
+  background: #111;
+  color: white;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.buy:hover {
+  background: #000;
+  transform: translateY(-2px);
+}
 .price {
   font-weight: bold;
   margin-bottom: 10px;
