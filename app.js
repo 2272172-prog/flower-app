@@ -8,6 +8,24 @@
 function money(n) {
   return (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
 }
+function buildOrderText(p) {
+  const link = getProductLink(p.id);
+  const name = p.name || "Букет";
+  const price = money(p.price || 0);
+  const desc = (p.desc || "").trim();
+  const firstImg =
+    Array.isArray(p.images) && p.images.length ? String(p.images[0]) : "";
+
+  return (
+    "Здравствуйте! Хочу заказать букет 🌸\n\n" +
+    "Букет: " + name + "\n" +
+    "Цена: " + price + "\n" +
+    (desc ? "\nОписание:\n" + desc + "\n" : "\n") +
+    (firstImg ? "Фото: " + firstImg + "\n" : "") +
+    "Ссылка: " + link + "\n\n" +
+    "Мои контакты/адрес/время доставки: "
+  );
+}
 
 function escapeHtml(s) {
   return String(s ?? "")
