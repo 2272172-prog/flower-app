@@ -214,31 +214,32 @@ function openProduct(p) {
   if (pmPrice) pmPrice.textContent = money(p.price || 0);
 
   if (pmOrder) {
-    pmOrder.onclick = function () {
-      const text =
-        "Хочу заказать: " + (p.name || "букет") + " — " + money(p.price || 0);
-      if (tg) {
-        try {
-          tg.sendData(
-            JSON.stringify({
-              type: "order",
-              id: p.id,
-              name: p.name,
-              price: p.price,
-              text: text,
-            })
-          );
-          showToast("Заявка отправлена ✅");
-        } catch (e) {
-          alert("Не удалось отправить в Telegram");
-        }
-      } else {
-        // fallback: копируем в буфер
-        try {
-          navigator.clipboard.writeText(text);
-          alert("Текст заказа скопирован:\n\n" + text);
-        } catch (e) {
-          alert(text);
+    pmOrder.onclick = async function () {
+  const text = buildOrderText(p);
+
+  // 1) копируем текст
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+  } catch (e) {}
+
+  // 2) открываем личку бота
+  const botUrl = "https://t.me/KutuzovFlora_bot";
+  if (tg) {
+    try {
+      tg.openTelegramLink(botUrl);
+    } catch (e) {
+      window.open(botUrl, "_blank");
+    }
+  } else {
+    window.open(botUrl, "_blank");
+  }
+
+  // 3) подсказка пользователю
+  if (copied) showToast("Текст заказа скопирован ✅ Вставьте в чат и отправьте");
+  else alert("Скопируйте и отправьте в чат:\n\n" + text);
+};
         }
       }
     };
