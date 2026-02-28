@@ -1,5 +1,15 @@
 (function () {
   "use strict";
+    // DEBUG MARKER
+  console.log("MEMENTO FLOS app.js loaded v5");
+  setTimeout(function () {
+    var t = document.getElementById("toast");
+    if (t) {
+      t.textContent = "JS загружен v5";
+      t.style.display = "block";
+      setTimeout(function () { t.style.display = "none"; }, 1200);
+    }
+  }, 300);
 
   // ===============================
   // MEMENTO FLOS — app.js (STABLE)
