@@ -110,7 +110,7 @@ body{
   border-radius: 16px;
   font-weight: 700;
   display: none;
-  z-index: 9999;
+  z-index: 999999;
 }
 
 /* ===== PRODUCT MODAL ===== */
