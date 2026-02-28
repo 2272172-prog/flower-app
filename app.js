@@ -423,3 +423,13 @@ initAdminAccess();
 if (imgRows && imgRows.children.length === 0) {
   imgRows.appendChild(createImgRow());
 }
+html.modal-open, body.modal-open {
+  overflow: hidden;
+  height: 100%;
+}
+
+.modal-bg .modal {
+  max-height: 85vh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
