@@ -69,11 +69,12 @@
   // ---------- TELEGRAM ----------
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   let tgUser = null;
+
   if (tg) {
     try {
       tg.expand();
       tg.ready();
-      tgUser = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+      tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
     } catch (e) {}
   }
 
@@ -182,6 +183,7 @@
     if (pmPrice) pmPrice.textContent = money(p.price || 0);
     if (pmDesc) pmDesc.textContent = (p.desc || "").trim();
 
+    // ✅ Заказ -> отправка в бота
     if (pmOrder) {
       pmOrder.onclick = function () {
         const payload = {
@@ -195,7 +197,7 @@
         };
 
         if (!tg) {
-          alert("Откройте сайт внутри Telegram, чтобы отправить заказ.");
+          alert("Откройте сайт внутри Telegram (через бота), чтобы отправить заказ.");
           return;
         }
 
@@ -203,7 +205,7 @@
           tg.sendData(JSON.stringify(payload));
           showToast("Заявка отправлена ✅");
         } catch (e) {
-          alert("Не удалось отправить заказ. Откройте приложение через Telegram.");
+          alert("Не удалось отправить заказ. Откройте через Telegram.");
         }
       };
     }
@@ -412,6 +414,7 @@
           imgs.forEach((u) => imgRows.appendChild(createImgRow(u)));
           if (!imgs.length) imgRows.appendChild(createImgRow(""));
         }
+
         showToast("Редактирование");
       });
 
@@ -514,7 +517,6 @@
     if (isAdmin && adminOpen) renderAdminList();
   }
 
-  // ---------- FIRESTORE SUBSCRIBE ----------
   db.collection("flowers").onSnapshot(
     function (snapshot) {
       if (!catalogDiv) return;
@@ -538,12 +540,4 @@
   if (imgRows && imgRows.children.length === 0) {
     imgRows.appendChild(createImgRow(""));
   }
-
-  // compatibility (если где-то остались inline onclick)
-  window.openAdmin = openAdminModal;
-  window.closeAdmin = closeAdminModal;
-  window.addImgRow = addImgRow;
-  window.saveFlower = saveFlower;
-  window.openProduct = openProduct;
-  window.closeProduct = closeProduct;
 })();
