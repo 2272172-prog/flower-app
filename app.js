@@ -1,21 +1,16 @@
 (function () {
   "use strict";
-    // DEBUG MARKER
-  console.log("MEMENTO FLOS app.js loaded v5");
+
+  // DEBUG MARKER
+  console.log("MEMENTO FLOS app.js loaded v6");
   setTimeout(function () {
     var t = document.getElementById("toast");
     if (t) {
-      t.textContent = "JS загружен v5";
+      t.textContent = "JS загружен v6";
       t.style.display = "block";
       setTimeout(function () { t.style.display = "none"; }, 1200);
     }
   }, 300);
-
-  // ===============================
-  // MEMENTO FLOS — app.js (STABLE)
-  // Catalog + Admin + Storage upload
-  // Order: tg.sendData -> bot webhook -> admin chat
-  // ===============================
 
   // ---------- HELPERS ----------
   function money(n) {
@@ -80,7 +75,6 @@
   }
 
   const storage = firebase.storage ? firebase.storage() : null;
-  if (!storage) console.warn("Storage SDK не подключен — загрузка файлов недоступна.");
 
   // ---------- TELEGRAM ----------
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -89,8 +83,7 @@
     try {
       tg.expand();
       tg.ready();
-      tgUser =
-        tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+      tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
     } catch (e) {}
   }
 
@@ -132,6 +125,7 @@
   // ---------- STATE ----------
   let lastCatalog = [];
   let openedFromUrlOnce = false;
+  let currentProduct = null;
 
   // ---------- BODY SCROLL LOCK ----------
   function lockBodyScroll() {
@@ -176,6 +170,7 @@
   // ---------- PRODUCT MODAL ----------
   function openProduct(p) {
     if (!productModalBg) return;
+    currentProduct = p;
 
     const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
     const list = images.length ? images : [coverFallback()];
@@ -200,38 +195,12 @@
     if (pmPrice) pmPrice.textContent = money(p.price || 0);
     if (pmDesc) pmDesc.textContent = (p.desc || "").trim();
 
-    // ✅ Заказ -> отправка в бота
-    if (pmOrder) {
-      pmOrder.onclick = function () {
-        const payload = {
-          type: "order",
-          id: p.id,
-          name: p.name || "Букет",
-          price: Number(p.price || 0),
-          desc: (p.desc || "").trim(),
-          img: Array.isArray(p.images) && p.images[0] ? String(p.images[0]) : "",
-          link: getProductLink(p.id),
-        };
-
-        if (!tg) {
-          alert("Откройте сайт внутри Telegram (через бота), чтобы отправить заказ.");
-          return;
-        }
-
-        try {
-          tg.sendData(JSON.stringify(payload));
-          showToast("Заявка отправлена ✅");
-        } catch (e) {
-          alert("Не удалось отправить заказ. Откройте через Telegram.");
-        }
-      };
-    }
-
     productModalBg.style.display = "flex";
     lockBodyScroll();
   }
 
   function closeProduct() {
+    currentProduct = null;
     if (!productModalBg) return;
     productModalBg.style.display = "none";
     unlockBodyScroll();
@@ -243,6 +212,44 @@
     productModalBg.addEventListener("click", function (e) {
       if (e.target === productModalBg) closeProduct();
     });
+  }
+
+  // ✅ ЖЕЛЕЗНЫЙ обработчик клика "Заказать"
+  if (pmOrder) {
+    pmOrder.addEventListener("click", function () {
+      showToast("Нажали Заказать");
+
+      if (!currentProduct) {
+        alert("Товар не выбран");
+        return;
+      }
+
+      const p = currentProduct;
+      const payload = {
+        type: "order",
+        id: p.id,
+        name: p.name || "Букет",
+        price: Number(p.price || 0),
+        desc: (p.desc || "").trim(),
+        img: Array.isArray(p.images) && p.images[0] ? String(p.images[0]) : "",
+        link: getProductLink(p.id),
+      };
+
+      if (!tg) {
+        alert("Откройте витрину внутри Telegram через бота.");
+        return;
+      }
+
+      try {
+        tg.sendData(JSON.stringify(payload));
+        showToast("Заявка отправлена ✅");
+      } catch (e) {
+        console.error(e);
+        alert("Не удалось отправить заказ.");
+      }
+    });
+  } else {
+    console.warn("pmOrder button not found");
   }
 
   // ---------- STORAGE UPLOAD ----------
@@ -353,9 +360,7 @@
     };
 
     if (!data.name) return alert("Название обязательно");
-    if (!Number.isFinite(data.price) || data.price <= 0) {
-      return alert("Цена должна быть числом > 0");
-    }
+    if (!Number.isFinite(data.price) || data.price <= 0) return alert("Цена должна быть числом > 0");
 
     try {
       if (editingFlowerId) {
@@ -371,7 +376,6 @@
           updatedAt: data.updatedAt,
         });
       }
-
       showToast("Сохранено ✅");
       clearAdminForm();
     } catch (err) {
@@ -379,7 +383,6 @@
       alert("Ошибка сохранения. Проверь Firestore Rules.");
     }
   }
-
   if (adSave) adSave.addEventListener("click", saveFlower);
 
   // ---------- ADMIN LIST ----------
@@ -387,8 +390,7 @@
     if (!adminList) return;
 
     if (!lastCatalog.length) {
-      adminList.innerHTML =
-        "<div class='admin-item'><div style='opacity:.7;'>Пока нет товаров</div></div>";
+      adminList.innerHTML = "<div class='admin-item'><div style='opacity:.7;'>Пока нет товаров</div></div>";
       return;
     }
 
@@ -411,10 +413,7 @@
       const meta = document.createElement("div");
       meta.style.opacity = ".75";
       meta.style.fontSize = "12px";
-      meta.textContent =
-        money(p.price || 0) +
-        " · фото: " +
-        (p.images && p.images.length ? p.images.length : 0);
+      meta.textContent = money(p.price || 0) + " · фото: " + (p.images && p.images.length ? p.images.length : 0);
 
       left.appendChild(title);
       left.appendChild(meta);
@@ -543,7 +542,6 @@
     if (isAdmin && adminOpen) renderAdminList();
   }
 
-  // ---------- FIRESTORE SUBSCRIBE ----------
   db.collection("flowers").onSnapshot(
     function (snapshot) {
       if (!catalogDiv) return;
