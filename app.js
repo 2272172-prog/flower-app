@@ -64,9 +64,7 @@
   }
 
   const storage = firebase.storage ? firebase.storage() : null;
-  if (!storage) {
-    console.warn("Storage SDK не подключен. Загрузка файлов не будет работать.");
-  }
+  if (!storage) console.warn("Storage SDK не подключен — загрузка файлов недоступна.");
 
   // ---------- TELEGRAM ----------
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -75,8 +73,7 @@
     try {
       tg.expand();
       tg.ready();
-      tgUser =
-        tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+      tgUser = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
     } catch (e) {}
   }
 
@@ -111,7 +108,7 @@
   const pmTrack = document.getElementById("pmTrack");
   const pmTitle = document.getElementById("pmTitle");
   const pmPrice = document.getElementById("pmPrice");
-  const pmDesc = document.getElementById("pmDesc"); // optional
+  const pmDesc = document.getElementById("pmDesc");
   const pmOrder = document.getElementById("pmOrder");
   const pmClose = document.getElementById("pmClose");
 
@@ -185,7 +182,6 @@
     if (pmPrice) pmPrice.textContent = money(p.price || 0);
     if (pmDesc) pmDesc.textContent = (p.desc || "").trim();
 
-    // ✅ Заказ отправляем в бота через tg.sendData
     if (pmOrder) {
       pmOrder.onclick = function () {
         const payload = {
@@ -198,15 +194,16 @@
           link: getProductLink(p.id),
         };
 
-        if (tg) {
-          try {
-            tg.sendData(JSON.stringify(payload));
-            showToast("Заявка отправлена ✅");
-          } catch (e) {
-            alert("Не удалось отправить заказ. Откройте приложение через Telegram.");
-          }
-        } else {
+        if (!tg) {
           alert("Откройте сайт внутри Telegram, чтобы отправить заказ.");
+          return;
+        }
+
+        try {
+          tg.sendData(JSON.stringify(payload));
+          showToast("Заявка отправлена ✅");
+        } catch (e) {
+          alert("Не удалось отправить заказ. Откройте приложение через Telegram.");
         }
       };
     }
@@ -239,15 +236,8 @@
     const fileName = Date.now() + "_" + safeName;
     const ref = storage.ref().child("products/" + fileName);
 
-    try {
-      await ref.put(file);
-      const url = await ref.getDownloadURL();
-      return url;
-    } catch (err) {
-      console.error(err);
-      alert("Ошибка upload: " + (err && err.message ? err.message : err));
-      throw err;
-    }
+    await ref.put(file);
+    return await ref.getDownloadURL();
   }
 
   // ---------- IMAGE ROW ----------
@@ -274,7 +264,8 @@
         input.value = uploadedUrl;
         showToast("Фото загружено ✅");
       } catch (err) {
-        // uploadImage already alerted
+        console.error(err);
+        alert("Ошибка загрузки фото");
       } finally {
         fileInput.value = "";
       }
@@ -342,8 +333,7 @@
     };
 
     if (!data.name) return alert("Название обязательно");
-    if (!Number.isFinite(data.price) || data.price <= 0)
-      return alert("Цена должна быть числом > 0");
+    if (!Number.isFinite(data.price) || data.price <= 0) return alert("Цена должна быть числом > 0");
 
     try {
       if (editingFlowerId) {
@@ -359,12 +349,11 @@
           updatedAt: data.updatedAt,
         });
       }
-
       showToast("Сохранено ✅");
       clearAdminForm();
     } catch (err) {
       console.error(err);
-      alert("Ошибка сохранения. Скорее всего Firestore Rules (permissions).");
+      alert("Ошибка сохранения. Проверь Firestore Rules.");
     }
   }
   if (adSave) adSave.addEventListener("click", saveFlower);
@@ -374,8 +363,7 @@
     if (!adminList) return;
 
     if (!lastCatalog.length) {
-      adminList.innerHTML =
-        "<div class='admin-item'><div style='opacity:.7;'>Пока нет товаров</div></div>";
+      adminList.innerHTML = "<div class='admin-item'><div style='opacity:.7;'>Пока нет товаров</div></div>";
       return;
     }
 
@@ -398,16 +386,12 @@
       const meta = document.createElement("div");
       meta.style.opacity = ".75";
       meta.style.fontSize = "12px";
-      meta.textContent =
-        money(p.price || 0) +
-        " · фото: " +
-        (p.images && p.images.length ? p.images.length : 0);
+      meta.textContent = money(p.price || 0) + " · фото: " + (p.images && p.images.length ? p.images.length : 0);
 
       left.appendChild(title);
       left.appendChild(meta);
 
       const right = document.createElement("div");
-      right.className = "admin-actions";
       right.style.display = "flex";
       right.style.gap = "8px";
 
@@ -428,7 +412,6 @@
           imgs.forEach((u) => imgRows.appendChild(createImgRow(u)));
           if (!imgs.length) imgRows.appendChild(createImgRow(""));
         }
-
         showToast("Редактирование");
       });
 
@@ -444,7 +427,7 @@
           showToast("Удалено ✅");
         } catch (err) {
           console.error(err);
-          alert("Не удалось удалить (проверь Rules)");
+          alert("Не удалось удалить");
         }
       });
 
@@ -537,8 +520,7 @@
       if (!catalogDiv) return;
 
       if (snapshot.empty) {
-        catalogDiv.innerHTML =
-          "<div style='padding:20px;opacity:.75;'>Нет товаров</div>";
+        catalogDiv.innerHTML = "<div style='padding:20px;opacity:.75;'>Нет товаров</div>";
         lastCatalog = [];
         if (isAdmin && adminOpen) renderAdminList();
         return;
