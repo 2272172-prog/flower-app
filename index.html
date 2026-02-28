@@ -23,27 +23,32 @@
   <div id="toast" class="toast"></div>
   <div id="catalog" class="grid"></div>
 
-  <!-- PRODUCT (можно пока оставить, если не используешь — убери) -->
+  <!-- PRODUCT MODAL -->
   <div id="productModalBg" class="product-modal-bg" style="display:none;">
     <div class="product-modal">
       <div class="pm-header">
-        <button class="pm-close" type="button" id="pmClose">✕</button>
+        <button id="pmClose" class="pm-close" type="button">✕</button>
       </div>
-      <div id="pmTrack" class="pm-track"></div>
+
+      <div class="pm-slider">
+        <div id="pmTrack" class="pm-track"></div>
+      </div>
+
       <div class="pm-body">
         <div id="pmTitle" class="pm-title"></div>
         <div id="pmPrice" class="pm-price"></div>
+        <div id="pmDesc" class="hint"></div>
         <button id="pmOrder" class="pm-order" type="button">Заказать</button>
       </div>
     </div>
   </div>
 
-  <!-- ADMIN -->
+  <!-- ADMIN MODAL -->
   <div id="adminModalBg" class="modal-bg" style="display:none;">
     <div class="modal">
       <div class="modal-head">
         <div class="modal-title">Админка</div>
-        <button id="adminClose" type="button" class="modal-close">✕</button>
+        <button id="adminClose" class="modal-close" type="button">✕</button>
       </div>
 
       <div class="modal-body">
