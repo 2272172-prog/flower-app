@@ -103,3 +103,32 @@ function saveFlower(){
   toast.style.display="block";
   setTimeout(()=>toast.style.display="none",1500);
 }
+// ===== TEST UPLOAD (TEMP) =====
+(function addTestUploadButton(){
+  const btn = document.createElement("button");
+  btn.textContent = "TEST UPLOAD";
+  btn.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:99999;padding:10px 12px;border-radius:12px;border:none;background:#111;color:#fff;";
+  document.body.appendChild(btn);
+
+  btn.onclick = () => {
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "image/*";
+    inp.onchange = async () => {
+      const file = inp.files?.[0];
+      if (!file) return;
+
+      try{
+        alert("Start upload...");
+        const ref = storage.ref().child("products/test_" + Date.now() + "_" + file.name);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+        alert("Uploaded ✅\n" + url);
+      }catch(err){
+        console.error(err);
+        alert("UPLOAD ERROR:\n" + (err.code || "") + "\n" + (err.message || err));
+      }
+    };
+    inp.click();
+  };
+})();
