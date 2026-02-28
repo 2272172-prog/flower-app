@@ -1,7 +1,7 @@
 // ===============================
 // MEMENTO FLOS — app.js (FULL, SAFE)
 // Catalog + Admin + Storage upload
-// No risky template strings (fix SyntaxError)
+// Works with ids + also supports old inline onclick handlers
 // ===============================
 
 // ---------- HELPERS ----------
@@ -49,30 +49,47 @@ const firebaseConfig = {
   appId: "1:540208840853:web:250f64a9ceedde1620db9c",
 };
 
-if (!window.firebase) {
-  alert("Firebase не загрузился. Проверь firebase-app.js");
+(function initFirebase() {
+  if (!window.firebase) {
+    alert("Firebase не загрузился. Проверь подключение firebase-app.js");
+    return;
+  }
+  try {
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  } catch (e) {
+    console.error("firebase.initializeApp error:", e);
+  }
+})();
+
+const db = firebase.firestore ? firebase.firestore() : null;
+
+if (!db) {
+  alert("Firestore SDK не подключен. Добавь firebase-firestore.js");
 }
 
-if (!firebase.apps || !firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+let storage = null;
+if (firebase.storage) {
+  storage = firebase.storage();
+} else {
+  // Не блокируем работу каталога/админки, просто без загрузки файлов
+  console.warn("Storage SDK не подключен. Загрузка файлов будет недоступна.");
 }
-
-const db = firebase.firestore();
-
-if (!firebase.storage) {
-  alert("Storage SDK не подключен. Добавь firebase-storage.js");
-}
-const storage = firebase.storage();
 
 // ---------- TELEGRAM ----------
-const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-let tgUser = null;
+const tg =
+  window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
+let tgUser = null;
 if (tg) {
   try {
     tg.expand();
     tg.ready();
-    tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+    tgUser =
+      tg.initDataUnsafe && tg.initDataUnsafe.user
+        ? tg.initDataUnsafe.user
+        : null;
   } catch (e) {}
 }
 
@@ -101,6 +118,14 @@ const adSave = document.getElementById("adSave");
 const adClear = document.getElementById("adClear");
 
 const adminList = document.getElementById("adminList");
+
+// Product modal (опционально — если есть в HTML)
+const productModalBg = document.getElementById("productModalBg");
+const pmTrack = document.getElementById("pmTrack");
+const pmTitle = document.getElementById("pmTitle");
+const pmPrice = document.getElementById("pmPrice");
+const pmOrder = document.getElementById("pmOrder");
+const pmClose = document.getElementById("pmClose");
 
 // ---------- STATE ----------
 let lastCatalog = [];
@@ -145,9 +170,85 @@ if (adminModalBg) {
   });
 }
 
-// ---------- STORAGE UPLOAD (debug alerts) ----------
+// ---------- PRODUCT MODAL (optional) ----------
+function openProduct(p) {
+  if (!productModalBg) return;
+  const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
+  const cover = images.length ? images : [coverFallback()];
+
+  if (pmTrack) {
+    pmTrack.innerHTML = "";
+    cover.forEach((src) => {
+      const slide = document.createElement("div");
+      slide.className = "pm-slide";
+      const img = document.createElement("img");
+      img.src = src;
+      img.onerror = function () {
+        img.onerror = null;
+        img.src = coverFallback();
+      };
+      slide.appendChild(img);
+      pmTrack.appendChild(slide);
+    });
+  }
+
+  if (pmTitle) pmTitle.textContent = p.name || "Без названия";
+  if (pmPrice) pmPrice.textContent = money(p.price || 0);
+
+  if (pmOrder) {
+    pmOrder.onclick = function () {
+      const text =
+        "Хочу заказать: " + (p.name || "букет") + " — " + money(p.price || 0);
+      if (tg) {
+        try {
+          tg.sendData(
+            JSON.stringify({
+              type: "order",
+              id: p.id,
+              name: p.name,
+              price: p.price,
+              text: text,
+            })
+          );
+          showToast("Заявка отправлена ✅");
+        } catch (e) {
+          alert("Не удалось отправить в Telegram");
+        }
+      } else {
+        // fallback: копируем в буфер
+        try {
+          navigator.clipboard.writeText(text);
+          alert("Текст заказа скопирован:\n\n" + text);
+        } catch (e) {
+          alert(text);
+        }
+      }
+    };
+  }
+
+  productModalBg.style.display = "flex";
+  lockBodyScroll();
+}
+
+function closeProduct() {
+  if (!productModalBg) return;
+  productModalBg.style.display = "none";
+  unlockBodyScroll();
+}
+
+if (pmClose) pmClose.addEventListener("click", closeProduct);
+if (productModalBg) {
+  productModalBg.addEventListener("click", function (e) {
+    if (e.target === productModalBg) closeProduct();
+  });
+}
+
+// ---------- STORAGE UPLOAD ----------
 async function uploadImage(file) {
-  alert("Начинаю загрузку...");
+  if (!storage) {
+    alert("Storage не подключен (firebase-storage.js). Загрузка недоступна.");
+    throw new Error("Storage not available");
+  }
 
   const safeName = String(file.name || "image").replaceAll(" ", "_");
   const fileName = Date.now() + "_" + safeName;
@@ -155,11 +256,7 @@ async function uploadImage(file) {
 
   try {
     await ref.put(file);
-    alert("Файл загружен ✅");
-
     const url = await ref.getDownloadURL();
-    alert("URL получен ✅");
-
     return url;
   } catch (err) {
     console.error(err);
@@ -192,7 +289,7 @@ function createImgRow(url) {
       input.value = uploadedUrl;
       showToast("Фото загружено ✅");
     } catch (err) {
-      // alert уже показан
+      // uploadImage уже показал alert
     } finally {
       fileInput.value = "";
     }
@@ -225,12 +322,11 @@ function getImages() {
 }
 
 // add row
-if (addImgRowBtn) {
-  addImgRowBtn.addEventListener("click", function () {
-    if (!imgRows) return;
-    imgRows.appendChild(createImgRow(""));
-  });
+function addImgRow() {
+  if (!imgRows) return;
+  imgRows.appendChild(createImgRow(""));
 }
+if (addImgRowBtn) addImgRowBtn.addEventListener("click", addImgRow);
 
 // ---------- CLEAR FORM ----------
 function clearAdminForm() {
@@ -240,6 +336,7 @@ function clearAdminForm() {
   if (adCategory) adCategory.value = "";
   if (adDesc) adDesc.value = "";
   if (imgRows) imgRows.innerHTML = "";
+  if (imgRows) imgRows.appendChild(createImgRow(""));
 }
 
 if (adClear) {
@@ -250,47 +347,58 @@ if (adClear) {
 }
 
 // ---------- SAVE FLOWER ----------
+async function saveFlower() {
+  if (!db) {
+    alert("Firestore не подключен");
+    return;
+  }
+
+  const data = {
+    name: (adName && adName.value ? adName.value : "").trim(),
+    price: Number(adPrice && adPrice.value ? adPrice.value : 0),
+    category: (adCategory && adCategory.value ? adCategory.value : "").trim(),
+    desc: (adDesc && adDesc.value ? adDesc.value : "").trim(),
+    images: getImages(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (!data.name) {
+    alert("Название обязательно");
+    return;
+  }
+  if (!Number.isFinite(data.price) || data.price <= 0) {
+    alert("Цена должна быть числом > 0");
+    return;
+  }
+
+  try {
+    if (editingFlowerId) {
+      await db.collection("flowers").doc(editingFlowerId).set(data, { merge: true });
+    } else {
+      await db.collection("flowers").add({
+        name: data.name,
+        price: data.price,
+        category: data.category,
+        desc: data.desc,
+        images: data.images,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: data.updatedAt,
+      });
+    }
+
+    showToast("Сохранено ✅");
+    clearAdminForm();
+  } catch (err) {
+    console.error(err);
+    alert(
+      "Ошибка сохранения. Часто причина — Firestore Rules (insufficient permissions)."
+    );
+  }
+}
+
 if (adSave) {
-  adSave.addEventListener("click", async function () {
-    const data = {
-      name: (adName && adName.value ? adName.value : "").trim(),
-      price: Number(adPrice && adPrice.value ? adPrice.value : 0),
-      category: (adCategory && adCategory.value ? adCategory.value : "").trim(),
-      desc: (adDesc && adDesc.value ? adDesc.value : "").trim(),
-      images: getImages(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    };
-
-    if (!data.name) {
-      alert("Название обязательно");
-      return;
-    }
-    if (!Number.isFinite(data.price) || data.price <= 0) {
-      alert("Цена должна быть числом > 0");
-      return;
-    }
-
-    try {
-      if (editingFlowerId) {
-        await db.collection("flowers").doc(editingFlowerId).set(data, { merge: true });
-      } else {
-        await db.collection("flowers").add({
-          name: data.name,
-          price: data.price,
-          category: data.category,
-          desc: data.desc,
-          images: data.images,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: data.updatedAt,
-        });
-      }
-
-      showToast("Сохранено ✅");
-      clearAdminForm();
-    } catch (err) {
-      console.error(err);
-      alert("Ошибка сохранения. Проверь Firestore Rules.");
-    }
+  adSave.addEventListener("click", function () {
+    saveFlower();
   });
 }
 
@@ -299,7 +407,8 @@ function renderAdminList() {
   if (!adminList) return;
 
   if (!lastCatalog.length) {
-    adminList.innerHTML = "<div class='admin-item'><div style='opacity:.7;'>Пока нет товаров</div></div>";
+    adminList.innerHTML =
+      "<div class='admin-item'><div style='opacity:.7;'>Пока нет товаров</div></div>";
     return;
   }
 
@@ -308,10 +417,6 @@ function renderAdminList() {
   lastCatalog.forEach((p) => {
     const item = document.createElement("div");
     item.className = "admin-item";
-    item.style.display = "flex";
-    item.style.justifyContent = "space-between";
-    item.style.alignItems = "center";
-    item.style.gap = "12px";
 
     const left = document.createElement("div");
     left.style.minWidth = "0";
@@ -326,14 +431,16 @@ function renderAdminList() {
     const meta = document.createElement("div");
     meta.style.opacity = ".75";
     meta.style.fontSize = "12px";
-    meta.textContent = money(p.price || 0) + " · фото: " + ((p.images && p.images.length) ? p.images.length : 0);
+    meta.textContent =
+      money(p.price || 0) +
+      " · фото: " +
+      (p.images && p.images.length ? p.images.length : 0);
 
     left.appendChild(title);
     left.appendChild(meta);
 
     const right = document.createElement("div");
-    right.style.display = "flex";
-    right.style.gap = "8px";
+    right.className = "admin-actions";
 
     const editBtn = document.createElement("button");
     editBtn.className = "btn-secondary";
@@ -368,7 +475,7 @@ function renderAdminList() {
         showToast("Удалено ✅");
       } catch (err) {
         console.error(err);
-        alert("Не удалось удалить");
+        alert("Не удалось удалить (проверь Rules)");
       }
     });
 
@@ -393,14 +500,16 @@ function renderProducts(snapshot) {
     const data = doc.data() || {};
     const id = doc.id;
 
-    lastCatalog.push({
+    const product = {
       id: id,
       name: data.name,
       price: data.price,
       category: data.category,
       desc: data.desc,
       images: data.images,
-    });
+    };
+
+    lastCatalog.push(product);
 
     const images = Array.isArray(data.images) ? data.images.filter(Boolean) : [];
     const cover = images.length ? images[0] : coverFallback();
@@ -433,6 +542,11 @@ function renderProducts(snapshot) {
     card.appendChild(img);
     card.appendChild(body);
 
+    // optional: click opens product modal
+    card.addEventListener("click", function () {
+      openProduct(product);
+    });
+
     catalogDiv.appendChild(card);
   });
 
@@ -440,26 +554,42 @@ function renderProducts(snapshot) {
 }
 
 // ---------- FIRESTORE SUBSCRIBE ----------
-db.collection("flowers").onSnapshot(
-  function (snapshot) {
-    if (!catalogDiv) return;
+function subscribeCatalog() {
+  if (!db) return;
 
-    if (snapshot.empty) {
-      catalogDiv.innerHTML = "<div style='padding:20px;opacity:.75;'>Нет товаров</div>";
-      lastCatalog = [];
-      if (isAdmin && adminOpen) renderAdminList();
-      return;
+  db.collection("flowers").onSnapshot(
+    function (snapshot) {
+      if (!catalogDiv) return;
+
+      if (snapshot.empty) {
+        catalogDiv.innerHTML =
+          "<div style='padding:20px;opacity:.75;'>Нет товаров</div>";
+        lastCatalog = [];
+        if (isAdmin && adminOpen) renderAdminList();
+        return;
+      }
+      renderProducts(snapshot);
+    },
+    function (err) {
+      console.error(err);
+      alert("Ошибка Firestore. Проверь Rules и настройки проекта.");
     }
-    renderProducts(snapshot);
-  },
-  function (err) {
-    console.error(err);
-    alert("Ошибка Firestore. Проверь Rules и настройки проекта.");
-  }
-);
+  );
+}
 
 // ---------- INIT ----------
 initAdminAccess();
+subscribeCatalog();
+
+// add first image row if empty
 if (imgRows && imgRows.children.length === 0) {
   imgRows.appendChild(createImgRow(""));
 }
+
+// ---------- Backward compatibility for old HTML onclick ----------
+window.closeAdmin = closeAdminModal;
+window.openAdmin = openAdminModal;
+window.addImgRow = addImgRow;
+window.saveFlower = saveFlower;
+window.closeProduct = closeProduct;
+window.openProduct = openProduct;
