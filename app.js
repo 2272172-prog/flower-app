@@ -1,10 +1,3 @@
-// ===============================
-// MEMENTO FLOS — app.js (FULL, STABLE)
-// Catalog + Admin + Storage upload
-// Order: copy text + open @KutuzovFlora_bot
-// Deep link: https://flower-app-ten.vercel.app/?p=ID
-// ===============================
-
 (function () {
   "use strict";
 
@@ -42,29 +35,8 @@
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
   }
 
-  // Ссылка на конкретный букет
   function getProductLink(productId) {
-    // фиксируем домен, чтобы ссылка была всегда правильной
     return "https://flower-app-ten.vercel.app/?p=" + encodeURIComponent(productId);
-  }
-
-  function buildOrderText(p) {
-    const link = getProductLink(p.id);
-    const name = p.name || "Букет";
-    const price = money(p.price || 0);
-    const desc = (p.desc || "").trim();
-    const firstImg =
-      Array.isArray(p.images) && p.images.length ? String(p.images[0]) : "";
-
-    return (
-      "Здравствуйте! Хочу заказать букет 🌸\n\n" +
-      "Букет: " + name + "\n" +
-      "Цена: " + price + "\n" +
-      (desc ? "\nОписание:\n" + desc + "\n" : "\n") +
-      (firstImg ? "Фото: " + firstImg + "\n" : "") +
-      "Ссылка: " + link + "\n\n" +
-      "Мои контакты/адрес/время доставки: "
-    );
   }
 
   // ---------- FIREBASE ----------
@@ -78,7 +50,7 @@
   };
 
   if (!window.firebase) {
-    alert("Firebase не загрузился. Проверь подключение firebase-app.js");
+    alert("Firebase не загрузился. Проверь firebase-app.js");
     return;
   }
   if (!firebase.apps || !firebase.apps.length) {
@@ -99,7 +71,6 @@
   // ---------- TELEGRAM ----------
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   let tgUser = null;
-
   if (tg) {
     try {
       tg.expand();
@@ -110,7 +81,7 @@
   }
 
   // ---------- ADMIN ----------
-  const ADMIN_IDS = [41830773]; // твой TG user id
+  const ADMIN_IDS = [41830773];
   let isAdmin = false;
   let adminOpen = false;
   let editingFlowerId = null;
@@ -214,32 +185,29 @@
     if (pmPrice) pmPrice.textContent = money(p.price || 0);
     if (pmDesc) pmDesc.textContent = (p.desc || "").trim();
 
+    // ✅ Заказ отправляем в бота через tg.sendData
     if (pmOrder) {
-      pmOrder.onclick = async function () {
-        const text = buildOrderText(p);
+      pmOrder.onclick = function () {
+        const payload = {
+          type: "order",
+          id: p.id,
+          name: p.name || "Букет",
+          price: Number(p.price || 0),
+          desc: (p.desc || "").trim(),
+          img: (Array.isArray(p.images) && p.images[0]) ? String(p.images[0]) : "",
+          link: getProductLink(p.id),
+        };
 
-        // 1) copy
-        let copied = false;
-        try {
-          await navigator.clipboard.writeText(text);
-          copied = true;
-        } catch (e) {}
-
-        // 2) open bot chat
-        const botUrl = "https://t.me/KutuzovFlora_bot";
         if (tg) {
           try {
-            tg.openTelegramLink(botUrl);
+            tg.sendData(JSON.stringify(payload));
+            showToast("Заявка отправлена ✅");
           } catch (e) {
-            window.open(botUrl, "_blank");
+            alert("Не удалось отправить заказ. Откройте приложение через Telegram.");
           }
         } else {
-          window.open(botUrl, "_blank");
+          alert("Откройте сайт внутри Telegram, чтобы отправить заказ.");
         }
-
-        // 3) hint
-        if (copied) showToast("Текст заказа скопирован ✅ Вставьте в чат и отправьте");
-        else alert("Скопируйте и отправьте в чат:\n\n" + text);
       };
     }
 
@@ -342,7 +310,6 @@
     if (!imgRows) return;
     imgRows.appendChild(createImgRow(""));
   }
-
   if (addImgRowBtn) addImgRowBtn.addEventListener("click", addImgRow);
 
   // ---------- CLEAR FORM ----------
@@ -392,6 +359,7 @@
           updatedAt: data.updatedAt,
         });
       }
+
       showToast("Сохранено ✅");
       clearAdminForm();
     } catch (err) {
@@ -399,7 +367,6 @@
       alert("Ошибка сохранения. Скорее всего Firestore Rules (permissions).");
     }
   }
-
   if (adSave) adSave.addEventListener("click", saveFlower);
 
   // ---------- ADMIN LIST ----------
