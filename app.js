@@ -6,7 +6,7 @@
   setTimeout(function () {
     var t = document.getElementById("toast");
     if (t) {
-      t.textContent = "JS загружен v6";
+      t.textContent = "JS загружен v8";
       t.style.display = "block";
       setTimeout(function () { t.style.display = "none"; }, 1200);
     }
