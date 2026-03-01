@@ -2,8 +2,9 @@
   "use strict";
 
   // ===============================
-  // MEMENTO FLOS — app.js (vStart)
-  // Order via /start payload (reliable)
+  // MEMENTO FLOS — app.js (v20)
+  // Catalog + Admin + Storage upload
+  // Order via /start deep-link (reliable)
   // ===============================
 
   function money(n) {
@@ -26,7 +27,7 @@
     t.textContent = text || "Готово";
     t.style.display = "block";
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => (t.style.display = "none"), 1800);
+    toastTimer = setTimeout(() => (t.style.display = "none"), 1600);
   }
 
   function coverFallback() {
@@ -37,15 +38,6 @@
       "font-family='Arial' font-size='28' fill='#64748b'>MEMENTO FLOS</text>" +
       "</svg>";
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
-  }
-
-  function lockBodyScroll() {
-    document.documentElement.classList.add("modal-open");
-    document.body.classList.add("modal-open");
-  }
-  function unlockBodyScroll() {
-    document.documentElement.classList.remove("modal-open");
-    document.body.classList.remove("modal-open");
   }
 
   // ---------- FIREBASE ----------
@@ -81,7 +73,7 @@
     try {
       tg.expand();
       tg.ready();
-      tgUser = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+      tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
     } catch (e) {}
   }
 
@@ -119,11 +111,22 @@
   const pmDesc = document.getElementById("pmDesc");
   const pmOrder = document.getElementById("pmOrder");
   const pmClose = document.getElementById("pmClose");
+  const pmOrderPrice = document.getElementById("pmOrderPrice");
 
   // ---------- STATE ----------
   let lastCatalog = [];
   let openedFromUrlOnce = false;
   let currentProduct = null;
+
+  // ---------- BODY SCROLL LOCK ----------
+  function lockBodyScroll() {
+    document.documentElement.classList.add("modal-open");
+    document.body.classList.add("modal-open");
+  }
+  function unlockBodyScroll() {
+    document.documentElement.classList.remove("modal-open");
+    document.body.classList.remove("modal-open");
+  }
 
   // ---------- ADMIN ACCESS ----------
   function initAdminAccess() {
@@ -148,6 +151,7 @@
 
   if (adminBtn) adminBtn.addEventListener("click", openAdminModal);
   if (adminClose) adminClose.addEventListener("click", closeAdminModal);
+
   if (adminModalBg) {
     adminModalBg.addEventListener("click", function (e) {
       if (e.target === adminModalBg) closeAdminModal();
@@ -179,8 +183,12 @@
     }
 
     if (pmTitle) pmTitle.textContent = p.name || "Без названия";
-    if (pmPrice) pmPrice.textContent = money(p.price || 0);
-    if (pmDesc) pmDesc.textContent = (p.desc || "").trim();
+    if (pmPrice) pmPrice.textContent = "Цена: " + money(p.price || 0);
+
+    const desc = (p.desc || "").trim();
+    if (pmDesc) pmDesc.textContent = desc ? desc : "Описание скоро будет добавлено.";
+
+    if (pmOrderPrice) pmOrderPrice.textContent = money(p.price || 0);
 
     productModalBg.style.display = "flex";
     lockBodyScroll();
@@ -194,19 +202,18 @@
   }
 
   if (pmClose) pmClose.addEventListener("click", closeProduct);
+
   if (productModalBg) {
     productModalBg.addEventListener("click", function (e) {
       if (e.target === productModalBg) closeProduct();
     });
   }
 
-  // ---------- ORDER (RELIABLE) ----------
+  // ---------- ORDER VIA /START (RELIABLE) ----------
   function openBotStartOrder(productId) {
     const payload = "order_" + String(productId || "");
-    const startLink =
-      "https://t.me/KutuzovFlora_bot?start=" + encodeURIComponent(payload);
+    const startLink = "https://t.me/KutuzovFlora_bot?start=" + encodeURIComponent(payload);
 
-    // открыть чат с ботом
     if (tg && tg.openTelegramLink) tg.openTelegramLink(startLink);
     else window.location.href = startLink;
 
@@ -293,11 +300,12 @@
     return arr;
   }
 
-  function addImgRow() {
-    if (!imgRows) return;
-    imgRows.appendChild(createImgRow(""));
+  if (addImgRowBtn) {
+    addImgRowBtn.addEventListener("click", function () {
+      if (!imgRows) return;
+      imgRows.appendChild(createImgRow(""));
+    });
   }
-  if (addImgRowBtn) addImgRowBtn.addEventListener("click", addImgRow);
 
   // ---------- CLEAR FORM ----------
   function clearAdminForm() {
@@ -318,41 +326,49 @@
   }
 
   // ---------- SAVE FLOWER ----------
-  async function saveFlower() {
-    const data = {
-      name: (adName && adName.value ? adName.value : "").trim(),
-      price: Number(adPrice && adPrice.value ? adPrice.value : 0),
-      category: (adCategory && adCategory.value ? adCategory.value : "").trim(),
-      desc: (adDesc && adDesc.value ? adDesc.value : "").trim(),
-      images: getImages(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    };
+  if (adSave) {
+    adSave.addEventListener("click", async function () {
+      const data = {
+        name: (adName && adName.value ? adName.value : "").trim(),
+        price: Number(adPrice && adPrice.value ? adPrice.value : 0),
+        category: (adCategory && adCategory.value ? adCategory.value : "").trim(),
+        desc: (adDesc && adDesc.value ? adDesc.value : "").trim(),
+        images: getImages(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
 
-    if (!data.name) return alert("Название обязательно");
-    if (!Number.isFinite(data.price) || data.price <= 0) return alert("Цена должна быть числом > 0");
-
-    try {
-      if (editingFlowerId) {
-        await db.collection("flowers").doc(editingFlowerId).set(data, { merge: true });
-      } else {
-        await db.collection("flowers").add({
-          name: data.name,
-          price: data.price,
-          category: data.category,
-          desc: data.desc,
-          images: data.images,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: data.updatedAt,
-        });
+      if (!data.name) {
+        alert("Название обязательно");
+        return;
       }
-      showToast("Сохранено ✅");
-      clearAdminForm();
-    } catch (err) {
-      console.error(err);
-      alert("Ошибка сохранения. Проверь Firestore Rules.");
-    }
+      if (!Number.isFinite(data.price) || data.price <= 0) {
+        alert("Цена должна быть числом > 0");
+        return;
+      }
+
+      try {
+        if (editingFlowerId) {
+          await db.collection("flowers").doc(editingFlowerId).set(data, { merge: true });
+        } else {
+          await db.collection("flowers").add({
+            name: data.name,
+            price: data.price,
+            category: data.category,
+            desc: data.desc,
+            images: data.images,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: data.updatedAt,
+          });
+        }
+
+        showToast("Сохранено ✅");
+        clearAdminForm();
+      } catch (err) {
+        console.error(err);
+        alert("Ошибка сохранения. Проверь Firestore Rules.");
+      }
+    });
   }
-  if (adSave) adSave.addEventListener("click", saveFlower);
 
   // ---------- ADMIN LIST ----------
   function renderAdminList() {
@@ -433,6 +449,7 @@
 
       item.appendChild(left);
       item.appendChild(right);
+
       adminList.appendChild(item);
     });
   }
@@ -511,6 +528,7 @@
     if (isAdmin && adminOpen) renderAdminList();
   }
 
+  // ---------- FIRESTORE SUBSCRIBE ----------
   db.collection("flowers").onSnapshot(
     function (snapshot) {
       if (!catalogDiv) return;
