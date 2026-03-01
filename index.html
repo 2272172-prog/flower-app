@@ -7,16 +7,15 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
 
-  <!-- ВАЖНО: версия для сброса кэша -->
-  <link rel="stylesheet" href="./styles.css?v=8">
+  <link rel="stylesheet" href="./styles.css?v=20">
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-<body>
 
+<body>
   <header class="main-header">
     <h1 class="brand-title">MEMENTO FLOS</h1>
     <button id="adminBtn" class="admin-btn" style="display:none;">Админ</button>
@@ -39,8 +38,18 @@
       <div class="pm-body">
         <div id="pmTitle" class="pm-title"></div>
         <div id="pmPrice" class="pm-price"></div>
-        <div id="pmDesc" class="hint"></div>
-        <button id="pmOrder" class="pm-order" type="button">Заказать</button>
+
+        <div id="pmDesc" class="pm-desc"></div>
+
+        <div class="order-bar">
+          <button id="pmOrder" class="order-btn" type="button">
+            <span class="label">
+              <small>ЗАКАЗАТЬ</small>
+              <span>Оставить заявку</span>
+            </span>
+            <span id="pmOrderPrice" class="price-pill">—</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -78,8 +87,6 @@
     </div>
   </div>
 
-  <!-- ВАЖНО: версия для сброса кэша -->
-  <script src="./app.js?v=5"></script>
-
+  <script src="./app.js?v=20"></script>
 </body>
 </html>
