@@ -1,18 +1,11 @@
 (function () {
   "use strict";
 
-  // DEBUG MARKER
-  console.log("MEMENTO FLOS app.js loaded v6");
-  setTimeout(function () {
-    var t = document.getElementById("toast");
-    if (t) {
-      t.textContent = "JS загружен v8";
-      t.style.display = "block";
-      setTimeout(function () { t.style.display = "none"; }, 1200);
-    }
-  }, 300);
+  // ===============================
+  // MEMENTO FLOS — app.js (vStart)
+  // Order via /start payload (reliable)
+  // ===============================
 
-  // ---------- HELPERS ----------
   function money(n) {
     return (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
   }
@@ -46,8 +39,13 @@
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
   }
 
-  function getProductLink(productId) {
-    return "https://flower-app-ten.vercel.app/?p=" + encodeURIComponent(productId);
+  function lockBodyScroll() {
+    document.documentElement.classList.add("modal-open");
+    document.body.classList.add("modal-open");
+  }
+  function unlockBodyScroll() {
+    document.documentElement.classList.remove("modal-open");
+    document.body.classList.remove("modal-open");
   }
 
   // ---------- FIREBASE ----------
@@ -83,7 +81,7 @@
     try {
       tg.expand();
       tg.ready();
-      tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+      tgUser = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
     } catch (e) {}
   }
 
@@ -127,16 +125,6 @@
   let openedFromUrlOnce = false;
   let currentProduct = null;
 
-  // ---------- BODY SCROLL LOCK ----------
-  function lockBodyScroll() {
-    document.documentElement.classList.add("modal-open");
-    document.body.classList.add("modal-open");
-  }
-  function unlockBodyScroll() {
-    document.documentElement.classList.remove("modal-open");
-    document.body.classList.remove("modal-open");
-  }
-
   // ---------- ADMIN ACCESS ----------
   function initAdminAccess() {
     isAdmin = !!(tgUser && ADMIN_IDS.includes(Number(tgUser.id)));
@@ -160,7 +148,6 @@
 
   if (adminBtn) adminBtn.addEventListener("click", openAdminModal);
   if (adminClose) adminClose.addEventListener("click", closeAdminModal);
-
   if (adminModalBg) {
     adminModalBg.addEventListener("click", function (e) {
       if (e.target === adminModalBg) closeAdminModal();
@@ -169,8 +156,8 @@
 
   // ---------- PRODUCT MODAL ----------
   function openProduct(p) {
-    if (!productModalBg) return;
     currentProduct = p;
+    if (!productModalBg) return;
 
     const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
     const list = images.length ? images : [coverFallback()];
@@ -207,54 +194,31 @@
   }
 
   if (pmClose) pmClose.addEventListener("click", closeProduct);
-
   if (productModalBg) {
     productModalBg.addEventListener("click", function (e) {
       if (e.target === productModalBg) closeProduct();
     });
   }
 
-  // ✅ ЖЕЛЕЗНЫЙ обработчик клика "Заказать"
+  // ---------- ORDER (RELIABLE) ----------
+  function openBotStartOrder(productId) {
+    const payload = "order_" + String(productId || "");
+    const startLink =
+      "https://t.me/KutuzovFlora_bot?start=" + encodeURIComponent(payload);
+
+    // открыть чат с ботом
+    if (tg && tg.openTelegramLink) tg.openTelegramLink(startLink);
+    else window.location.href = startLink;
+
+    showToast("Открываю чат с ботом…");
+    try { tg.close(); } catch (e) {}
+  }
+
   if (pmOrder) {
     pmOrder.addEventListener("click", function () {
-      showToast("Нажали Заказать");
-
-      if (!currentProduct) {
-        alert("Товар не выбран");
-        return;
-      }
-
-      const p = currentProduct;
-      const payload = {
-        type: "order",
-        id: p.id,
-        name: p.name || "Букет",
-        price: Number(p.price || 0),
-        desc: (p.desc || "").trim(),
-        img: Array.isArray(p.images) && p.images[0] ? String(p.images[0]) : "",
-        link: getProductLink(p.id),
-      };
-
-      if (!tg) {
-        alert("Откройте витрину внутри Telegram через бота.");
-        return;
-      }
-
-      try {
-        tg.sendData(JSON.stringify(payload));
-showToast("Заявка отправлена ✅");
-
-// ВАЖНО: на десктопе часто нужно закрыть WebApp, иначе данные не улетают в бота
-try {
-  tg.close();
-} catch (e) {}
-      } catch (e) {
-        console.error(e);
-        alert("Не удалось отправить заказ.");
-      }
+      if (!currentProduct) return alert("Товар не выбран");
+      openBotStartOrder(currentProduct.id);
     });
-  } else {
-    console.warn("pmOrder button not found");
   }
 
   // ---------- STORAGE UPLOAD ----------
