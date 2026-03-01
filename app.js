@@ -497,7 +497,7 @@
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "buy";
-      btn.textContent = "Заказать · " + money(data.price || 0);
+      btn.textContent = "Заказать";
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
         openProduct(product); // откроем карточку; можно сразу openBotStartOrder(product.id) если хочешь
