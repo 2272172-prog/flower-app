@@ -2,9 +2,9 @@
   "use strict";
 
   // ===============================
-  // MEMENTO FLOS — app.js (v20)
-  // Catalog + Admin + Storage upload
-  // Order via /start deep-link (reliable)
+  // MEMENTO FLOS — app.js (v30)
+  // Главная: центр + описание + кнопка "Заказать · цена"
+  // Заказ: через /start deep-link (надежно)
   // ===============================
 
   function money(n) {
@@ -38,6 +38,15 @@
       "font-family='Arial' font-size='28' fill='#64748b'>MEMENTO FLOS</text>" +
       "</svg>";
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+  }
+
+  function lockBodyScroll() {
+    document.documentElement.classList.add("modal-open");
+    document.body.classList.add("modal-open");
+  }
+  function unlockBodyScroll() {
+    document.documentElement.classList.remove("modal-open");
+    document.body.classList.remove("modal-open");
   }
 
   // ---------- FIREBASE ----------
@@ -75,6 +84,17 @@
       tg.ready();
       tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
     } catch (e) {}
+  }
+
+  function openBotStartOrder(productId) {
+    const payload = "order_" + String(productId || "");
+    const startLink = "https://t.me/KutuzovFlora_bot?start=" + encodeURIComponent(payload);
+
+    if (tg && tg.openTelegramLink) tg.openTelegramLink(startLink);
+    else window.location.href = startLink;
+
+    showToast("Открываю чат с ботом…");
+    try { tg.close(); } catch (e) {}
   }
 
   // ---------- ADMIN ----------
@@ -115,18 +135,8 @@
 
   // ---------- STATE ----------
   let lastCatalog = [];
-  let openedFromUrlOnce = false;
+  let adminListRenderedOnce = false;
   let currentProduct = null;
-
-  // ---------- BODY SCROLL LOCK ----------
-  function lockBodyScroll() {
-    document.documentElement.classList.add("modal-open");
-    document.body.classList.add("modal-open");
-  }
-  function unlockBodyScroll() {
-    document.documentElement.classList.remove("modal-open");
-    document.body.classList.remove("modal-open");
-  }
 
   // ---------- ADMIN ACCESS ----------
   function initAdminAccess() {
@@ -134,7 +144,6 @@
     if (adminBtn) adminBtn.style.display = isAdmin ? "inline-flex" : "none";
   }
 
-  // ---------- ADMIN MODAL ----------
   function openAdminModal() {
     if (!isAdmin) return;
     adminOpen = true;
@@ -183,11 +192,8 @@
     }
 
     if (pmTitle) pmTitle.textContent = p.name || "Без названия";
-    if (pmPrice) pmPrice.textContent = "Цена: " + money(p.price || 0);
-
-    const desc = (p.desc || "").trim();
-    if (pmDesc) pmDesc.textContent = desc ? desc : "Описание скоро будет добавлено.";
-
+    if (pmPrice) pmPrice.textContent = money(p.price || 0);
+    if (pmDesc) pmDesc.textContent = (p.desc || "").trim() || "Описание скоро будет добавлено.";
     if (pmOrderPrice) pmOrderPrice.textContent = money(p.price || 0);
 
     productModalBg.style.display = "flex";
@@ -202,23 +208,10 @@
   }
 
   if (pmClose) pmClose.addEventListener("click", closeProduct);
-
   if (productModalBg) {
     productModalBg.addEventListener("click", function (e) {
       if (e.target === productModalBg) closeProduct();
     });
-  }
-
-  // ---------- ORDER VIA /START (RELIABLE) ----------
-  function openBotStartOrder(productId) {
-    const payload = "order_" + String(productId || "");
-    const startLink = "https://t.me/KutuzovFlora_bot?start=" + encodeURIComponent(payload);
-
-    if (tg && tg.openTelegramLink) tg.openTelegramLink(startLink);
-    else window.location.href = startLink;
-
-    showToast("Открываю чат с ботом…");
-    try { tg.close(); } catch (e) {}
   }
 
   if (pmOrder) {
@@ -307,7 +300,6 @@
     });
   }
 
-  // ---------- CLEAR FORM ----------
   function clearAdminForm() {
     editingFlowerId = null;
     if (adName) adName.value = "";
@@ -325,7 +317,6 @@
     });
   }
 
-  // ---------- SAVE FLOWER ----------
   if (adSave) {
     adSave.addEventListener("click", async function () {
       const data = {
@@ -337,14 +328,8 @@
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       };
 
-      if (!data.name) {
-        alert("Название обязательно");
-        return;
-      }
-      if (!Number.isFinite(data.price) || data.price <= 0) {
-        alert("Цена должна быть числом > 0");
-        return;
-      }
+      if (!data.name) return alert("Название обязательно");
+      if (!Number.isFinite(data.price) || data.price <= 0) return alert("Цена должна быть числом > 0");
 
       try {
         if (editingFlowerId) {
@@ -370,7 +355,6 @@
     });
   }
 
-  // ---------- ADMIN LIST ----------
   function renderAdminList() {
     if (!adminList) return;
 
@@ -454,16 +438,11 @@
     });
   }
 
-  // ---------- OPEN FROM URL ?p=ID ----------
   function tryOpenFromUrl() {
-    if (openedFromUrlOnce) return;
     const pid = new URLSearchParams(window.location.search).get("p");
     if (!pid) return;
     const found = lastCatalog.find((x) => x.id === pid);
-    if (found) {
-      openedFromUrlOnce = true;
-      openProduct(found);
-    }
+    if (found) openProduct(found);
   }
 
   // ---------- CATALOG ----------
@@ -507,12 +486,27 @@
       t.className = "card-title";
       t.innerHTML = escapeHtml(data.name || "Без названия");
 
+      const d = document.createElement("div");
+      d.className = "card-desc";
+      d.textContent = (data.desc || "").trim() || "Нежный букет в фирменной упаковке.";
+
       const pr = document.createElement("div");
       pr.className = "price";
       pr.textContent = money(data.price || 0);
 
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "buy";
+      btn.textContent = "Заказать · " + money(data.price || 0);
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openProduct(product); // откроем карточку; можно сразу openBotStartOrder(product.id) если хочешь
+      });
+
       body.appendChild(t);
+      body.appendChild(d);
       body.appendChild(pr);
+      body.appendChild(btn);
 
       card.appendChild(img);
       card.appendChild(body);
@@ -524,11 +518,14 @@
       catalogDiv.appendChild(card);
     });
 
-    tryOpenFromUrl();
+    if (!adminListRenderedOnce) {
+      adminListRenderedOnce = true;
+      tryOpenFromUrl();
+    }
+
     if (isAdmin && adminOpen) renderAdminList();
   }
 
-  // ---------- FIRESTORE SUBSCRIBE ----------
   db.collection("flowers").onSnapshot(
     function (snapshot) {
       if (!catalogDiv) return;
@@ -547,7 +544,6 @@
     }
   );
 
-  // ---------- INIT ----------
   initAdminAccess();
   if (imgRows && imgRows.children.length === 0) {
     imgRows.appendChild(createImgRow(""));
