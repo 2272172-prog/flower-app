@@ -242,7 +242,12 @@
 
       try {
         tg.sendData(JSON.stringify(payload));
-        showToast("Заявка отправлена ✅");
+showToast("Заявка отправлена ✅");
+
+// ВАЖНО: на десктопе часто нужно закрыть WebApp, иначе данные не улетают в бота
+try {
+  tg.close();
+} catch (e) {}
       } catch (e) {
         console.error(e);
         alert("Не удалось отправить заказ.");
