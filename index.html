@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MEMENTO FLOS</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="./styles.css?v=20">
+  <link rel="stylesheet" href="./styles.css?v=30">
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -38,18 +38,11 @@
       <div class="pm-body">
         <div id="pmTitle" class="pm-title"></div>
         <div id="pmPrice" class="pm-price"></div>
-
         <div id="pmDesc" class="pm-desc"></div>
 
-        <div class="order-bar">
-          <button id="pmOrder" class="order-btn" type="button">
-            <span class="label">
-              <small>ЗАКАЗАТЬ</small>
-              <span>Оставить заявку</span>
-            </span>
-            <span id="pmOrderPrice" class="price-pill">—</span>
-          </button>
-        </div>
+        <button id="pmOrder" class="pm-order" type="button">
+          Заказать · <span id="pmOrderPrice">—</span>
+        </button>
       </div>
     </div>
   </div>
@@ -87,6 +80,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=20"></script>
+  <script src="./app.js?v=30"></script>
 </body>
 </html>
