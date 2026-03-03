@@ -215,6 +215,22 @@
     });
   }
 
+  // --- Mobile: scroll focused input into view inside admin modal ---
+  (function () {
+    const modal = document.querySelector("#adminModalBg .modal");
+    if (!modal) return;
+
+    modal.addEventListener("focusin", function (e) {
+      const el = e.target;
+      if (!el) return;
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+        setTimeout(() => {
+          try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (err) {}
+        }, 250);
+      }
+    });
+  })();
+
   // ---------- STORAGE UPLOAD ----------
   async function uploadImage(file) {
     if (!storage) {
@@ -486,22 +502,18 @@
       t.className = "card-title";
       t.innerHTML = escapeHtml(data.name || "Без названия");
 
-      const d = document.createElement("div");
-      d.className = "card-desc";
-      d.textContent = (data.desc || "").trim() || "Нежный букет в фирменной упаковке.";
-
+      // Цена в 2 строки
       const pr = document.createElement("div");
       pr.className = "price";
-      pr.textContent = money(data.price || 0);
+      const amount = Number(data.price || 0).toLocaleString("ru-RU");
+      pr.innerHTML = "<div class='p1'>от " + amount + "</div><div class='p2'>₽</div>";
 
       body.appendChild(t);
-      body.appendChild(d);
       body.appendChild(pr);
 
       card.appendChild(img);
       card.appendChild(body);
 
-      // Открываем модалку по клику на карточку
       card.addEventListener("click", function () {
         openProduct(product);
       });
@@ -534,20 +546,5 @@
   initAdminAccess();
   if (imgRows && imgRows.children.length === 0) {
     imgRows.appendChild(createImgRow(""));
-    // --- Mobile: scroll focused input into view inside admin modal ---
-(function () {
-  const modal = document.querySelector("#adminModalBg .modal");
-  if (!modal) return;
-
-  modal.addEventListener("focusin", function (e) {
-    const el = e.target;
-    if (!el) return;
-    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-      setTimeout(() => {
-        try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (err) {}
-      }, 250);
-    }
-  });
-})();
   }
 })();
