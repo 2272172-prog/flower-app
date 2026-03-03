@@ -1,12 +1,6 @@
 (function () {
   "use strict";
 
-  // ===============================
-  // MEMENTO FLOS — app.js (v30)
-  // Главная: центр + описание + кнопка "Заказать · цена"
-  // Заказ: через /start deep-link (надежно)
-  // ===============================
-
   function money(n) {
     return (Number(n || 0)).toLocaleString("ru-RU") + " ₽";
   }
@@ -131,12 +125,11 @@
   const pmDesc = document.getElementById("pmDesc");
   const pmOrder = document.getElementById("pmOrder");
   const pmClose = document.getElementById("pmClose");
-  const pmOrderPrice = document.getElementById("pmOrderPrice");
 
   // ---------- STATE ----------
   let lastCatalog = [];
-  let adminListRenderedOnce = false;
   let currentProduct = null;
+  let openedFromUrlOnce = false;
 
   // ---------- ADMIN ACCESS ----------
   function initAdminAccess() {
@@ -180,12 +173,14 @@
       list.forEach((src) => {
         const slide = document.createElement("div");
         slide.className = "pm-slide";
+
         const img = document.createElement("img");
         img.src = src;
         img.onerror = function () {
           img.onerror = null;
           img.src = coverFallback();
         };
+
         slide.appendChild(img);
         pmTrack.appendChild(slide);
       });
@@ -194,7 +189,6 @@
     if (pmTitle) pmTitle.textContent = p.name || "Без названия";
     if (pmPrice) pmPrice.textContent = money(p.price || 0);
     if (pmDesc) pmDesc.textContent = (p.desc || "").trim() || "Описание скоро будет добавлено.";
-    if (pmOrderPrice) pmOrderPrice.textContent = money(p.price || 0);
 
     productModalBg.style.display = "flex";
     lockBodyScroll();
@@ -355,6 +349,7 @@
     });
   }
 
+  // ---------- ADMIN LIST ----------
   function renderAdminList() {
     if (!adminList) return;
 
@@ -438,11 +433,16 @@
     });
   }
 
+  // ---------- OPEN FROM URL ?p=ID ----------
   function tryOpenFromUrl() {
+    if (openedFromUrlOnce) return;
     const pid = new URLSearchParams(window.location.search).get("p");
     if (!pid) return;
     const found = lastCatalog.find((x) => x.id === pid);
-    if (found) openProduct(found);
+    if (found) {
+      openedFromUrlOnce = true;
+      openProduct(found);
+    }
   }
 
   // ---------- CATALOG ----------
@@ -494,23 +494,14 @@
       pr.className = "price";
       pr.textContent = money(data.price || 0);
 
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "buy";
-      btn.textContent = "Заказать";
-      btn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        openProduct(product); // откроем карточку; можно сразу openBotStartOrder(product.id) если хочешь
-      });
-
       body.appendChild(t);
       body.appendChild(d);
       body.appendChild(pr);
-      body.appendChild(btn);
 
       card.appendChild(img);
       card.appendChild(body);
 
+      // Открываем модалку по клику на карточку
       card.addEventListener("click", function () {
         openProduct(product);
       });
@@ -518,11 +509,7 @@
       catalogDiv.appendChild(card);
     });
 
-    if (!adminListRenderedOnce) {
-      adminListRenderedOnce = true;
-      tryOpenFromUrl();
-    }
-
+    tryOpenFromUrl();
     if (isAdmin && adminOpen) renderAdminList();
   }
 
