@@ -357,3 +357,27 @@ body{
   align-items:center;
 }
 .admin-item:last-child{ border-bottom:none; }
+/* === ADMIN FIX (mobile keyboard) === */
+.modal-bg{
+  align-items: center;            /* было flex-end — из-за этого прыгает */
+  padding: 14px;
+}
+
+.modal{
+  max-height: 92dvh;              /* динамическая высота, учитывает клавиатуру */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-body{
+  padding-bottom: 28px;           /* чтобы кнопку не перекрывало */
+}
+
+.textarea{
+  min-height: 140px;              /* чтобы “строки не пропадали визуально” */
+  line-height: 1.35;
+  font-size: 16px;                /* важно: убирает авто-zoom iOS */
+}
+.input{
+  font-size: 16px;                /* важно: убирает авто-zoom iOS */
+}
