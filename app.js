@@ -69,13 +69,24 @@
 
   const storage = firebase.storage ? firebase.storage() : null;
 
-  // ---------- TELEGRAM ----------
+  // ---------- TELEGRAM (expand to max) ----------
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   let tgUser = null;
+
   if (tg) {
     try {
-      tg.expand();
       tg.ready();
+
+      tg.expand();
+      setTimeout(() => tg.expand(), 250);
+      setTimeout(() => tg.expand(), 800);
+
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+          try { tg.expand(); } catch(e) {}
+        }
+      });
+
       tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
     } catch (e) {}
   }
@@ -502,11 +513,9 @@
       t.className = "card-title";
       t.innerHTML = escapeHtml(data.name || "Без названия");
 
-      // Цена в 2 строки
       const pr = document.createElement("div");
       pr.className = "price";
-      const amount = Number(data.price || 0).toLocaleString("ru-RU");
-      pr.innerHTML = "<div class='p1'>от " + amount + "</div><div class='p2'>₽</div>";
+      pr.textContent = money(data.price || 0);
 
       body.appendChild(t);
       body.appendChild(pr);
