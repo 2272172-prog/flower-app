@@ -534,5 +534,20 @@
   initAdminAccess();
   if (imgRows && imgRows.children.length === 0) {
     imgRows.appendChild(createImgRow(""));
+    // --- Mobile: scroll focused input into view inside admin modal ---
+(function () {
+  const modal = document.querySelector("#adminModalBg .modal");
+  if (!modal) return;
+
+  modal.addEventListener("focusin", function (e) {
+    const el = e.target;
+    if (!el) return;
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+      setTimeout(() => {
+        try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (err) {}
+      }, 250);
+    }
+  });
+})();
   }
 })();
