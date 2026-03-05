@@ -69,22 +69,27 @@
 
   const storage = firebase.storage ? firebase.storage() : null;
 
-  // ---------- TELEGRAM (expand to max) ----------
+  // ---------- TELEGRAM (expand + try fullscreen) ----------
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   let tgUser = null;
+
+  function tryFullscreen() {
+    if (!tg) return;
+    try { tg.expand(); } catch (e) {}
+    try {
+      if (typeof tg.requestFullscreen === "function") tg.requestFullscreen();
+    } catch (e) {}
+  }
 
   if (tg) {
     try {
       tg.ready();
-
-      tg.expand();
-      setTimeout(() => tg.expand(), 250);
-      setTimeout(() => tg.expand(), 800);
+      tryFullscreen();
+      setTimeout(tryFullscreen, 250);
+      setTimeout(tryFullscreen, 800);
 
       document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) {
-          try { tg.expand(); } catch(e) {}
-        }
+        if (!document.hidden) tryFullscreen();
       });
 
       tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
@@ -103,7 +108,7 @@
   }
 
   // ---------- ADMIN ----------
-  const ADMIN_IDS = [1144072957];
+  const ADMIN_IDS = [41830773]; // поменяй сюда ID админа/админов
   let isAdmin = false;
   let adminOpen = false;
   let editingFlowerId = null;
@@ -136,6 +141,14 @@
   const pmDesc = document.getElementById("pmDesc");
   const pmOrder = document.getElementById("pmOrder");
   const pmClose = document.getElementById("pmClose");
+
+  // Info modal
+  const infoModalBg = document.getElementById("infoModalBg");
+  const infoTitle = document.getElementById("infoTitle");
+  const infoBody = document.getElementById("infoBody");
+  const infoClose = document.getElementById("infoClose");
+  const aboutBtn = document.getElementById("aboutBtn");
+  const contactsBtn = document.getElementById("contactsBtn");
 
   // ---------- STATE ----------
   let lastCatalog = [];
@@ -171,10 +184,28 @@
     });
   }
 
+  // ---------- MODAL ANIMATION HELPERS ----------
+  function openAnimated(bgEl) {
+    if (!bgEl) return;
+    bgEl.style.display = "flex";
+    // следующий кадр — добавляем класс open (чтобы сработал transition)
+    requestAnimationFrame(() => bgEl.classList.add("open"));
+    lockBodyScroll();
+  }
+
+  function closeAnimated(bgEl) {
+    if (!bgEl) return;
+    bgEl.classList.remove("open");
+    // подождать transition
+    setTimeout(() => {
+      bgEl.style.display = "none";
+      unlockBodyScroll();
+    }, 230);
+  }
+
   // ---------- PRODUCT MODAL ----------
   function openProduct(p) {
     currentProduct = p;
-    if (!productModalBg) return;
 
     const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
     const list = images.length ? images : [coverFallback()];
@@ -201,15 +232,12 @@
     if (pmPrice) pmPrice.textContent = money(p.price || 0);
     if (pmDesc) pmDesc.textContent = (p.desc || "").trim() || "Описание скоро будет добавлено.";
 
-    productModalBg.style.display = "flex";
-    lockBodyScroll();
+    openAnimated(productModalBg);
   }
 
   function closeProduct() {
     currentProduct = null;
-    if (!productModalBg) return;
-    productModalBg.style.display = "none";
-    unlockBodyScroll();
+    closeAnimated(productModalBg);
   }
 
   if (pmClose) pmClose.addEventListener("click", closeProduct);
@@ -223,6 +251,42 @@
     pmOrder.addEventListener("click", function () {
       if (!currentProduct) return alert("Товар не выбран");
       openBotStartOrder(currentProduct.id);
+    });
+  }
+
+  // ---------- INFO MODAL ----------
+  function openInfo(title, text) {
+    if (infoTitle) infoTitle.textContent = title || "Информация";
+    if (infoBody) infoBody.textContent = text || "";
+    openAnimated(infoModalBg);
+  }
+
+  function closeInfo() {
+    closeAnimated(infoModalBg);
+  }
+
+  if (infoClose) infoClose.addEventListener("click", closeInfo);
+  if (infoModalBg) {
+    infoModalBg.addEventListener("click", function (e) {
+      if (e.target === infoModalBg) closeInfo();
+    });
+  }
+
+  if (aboutBtn) {
+    aboutBtn.addEventListener("click", function () {
+      openInfo(
+        "О нас",
+        "MEMENTO FLOS\n\nАвторские букеты из свежих цветов.\nПомогаем подобрать композицию под любой повод."
+      );
+    });
+  }
+
+  if (contactsBtn) {
+    contactsBtn.addEventListener("click", function () {
+      openInfo(
+        "Контакты",
+        "Telegram: @vtaliy_gd\nБот для заказов: @KutuzovFlora_bot"
+      );
     });
   }
 
