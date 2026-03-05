@@ -6,7 +6,7 @@
   <title>MEMENTO FLOS</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=61">
+  <link rel="stylesheet" href="./styles.css?v=80">
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -19,6 +19,11 @@
     <h1 class="brand-title">MEMENTO FLOS</h1>
     <button id="adminBtn" class="admin-btn" style="display:none;">Админ</button>
   </header>
+
+  <div class="top-actions">
+    <button id="aboutBtn" class="chip" type="button">О нас</button>
+    <button id="contactsBtn" class="chip" type="button">Контакты</button>
+  </div>
 
   <div id="toast" class="toast"></div>
   <div id="catalog" class="grid"></div>
@@ -41,6 +46,17 @@
 
         <button id="pmOrder" class="pm-order" type="button">Заказать</button>
       </div>
+    </div>
+  </div>
+
+  <!-- INFO MODAL -->
+  <div id="infoModalBg" class="info-bg" style="display:none;">
+    <div class="info-modal">
+      <div class="info-head">
+        <div id="infoTitle" class="info-title"></div>
+        <button id="infoClose" class="pm-close" type="button">✕</button>
+      </div>
+      <div id="infoBody" class="info-body"></div>
     </div>
   </div>
 
@@ -77,6 +93,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=61"></script>
+  <script src="./app.js?v=80"></script>
 </body>
 </html>
